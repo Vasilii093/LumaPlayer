@@ -1,3 +1,5 @@
+Update 2026-10-27: LUMA_RIFE_FRAMECACHE=1 enables a bounded per-source-frame GPU cache in batch=2. It is enabled by the 1080p wrapper by default; =0 retains the pair cache. Both modes release the GPU worker permit after fence completion, before copying private readback to the VS output. Per-command Vulkan metadata isolates access/stage tracking; source owners remain alive until all command references are gone. See ../FRAMECACHE-VALIDATION.md for measurements and limits. These changes are not a fully asynchronous submission queue.
+
 Update 2026-10-26: the latest player also routes 1080p through this unchanged DLL (1536 MiB VS cache). Historical implementation notes follow.
 
 # Native RIFE memory path

@@ -18,6 +18,8 @@ if not hasattr(core, "rifebatch"):
 settings = str(user_data).split("|")
 target_fps = int(settings[0])
 processing_height = int(settings[1]) if len(settings) > 1 else 0
+# Keep a bounded GPU cache of source frames at 1080p. Set 0 for A/B comparison.
+os.environ.setdefault("LUMA_RIFE_FRAMECACHE", "1" if processing_height >= 1080 else "0")
 # Preserve the proven 900p budget; 1080p RGB frames need 44% more space.
 core.max_cache_size = 1536 if processing_height >= 1080 else 1024
 protection = int(settings[2]) if len(settings) > 2 else 0

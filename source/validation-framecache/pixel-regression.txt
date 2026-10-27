@@ -1,0 +1,38 @@
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  subgroup=32(32~32)  ops=1/1/1/1/1/1/1/1/1/1
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/1/1/1
+[1 AMD Radeon(TM) 610M]  queueC=1[4]  queueG=0[8]  queueT=2[1]
+[1 AMD Radeon(TM) 610M]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 AMD Radeon(TM) 610M]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1
+[1 AMD Radeon(TM) 610M]  subgroup=64(32~64)  ops=1/1/1/1/1/1/1/1/1/1
+[1 AMD Radeon(TM) 610M]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/0/0/1
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  subgroup=32(32~32)  ops=1/1/1/1/1/1/1/1/1/1
+[0 NVIDIA GeForce RTX 5070 Ti Laptop GPU]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/1/1/1
+[1 AMD Radeon(TM) 610M]  queueC=1[4]  queueG=0[8]  queueT=2[1]
+[1 AMD Radeon(TM) 610M]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 AMD Radeon(TM) 610M]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1
+[1 AMD Radeon(TM) 610M]  subgroup=64(32~64)  ops=1/1/1/1/1/1/1/1/1/1
+[1 AMD Radeon(TM) 610M]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=0/0/0/1
+[
+  {
+    "width": 318,
+    "height": 178,
+    "frames": 100,
+    "identical": true,
+    "finite": true,
+    "parallel": true
+  },
+  {
+    "width": 1920,
+    "height": 1080,
+    "frames": 40,
+    "identical": true,
+    "finite": true,
+    "parallel": true
+  }
+]

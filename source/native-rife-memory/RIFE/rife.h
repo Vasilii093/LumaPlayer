@@ -48,6 +48,18 @@ public:
                          const float* src1R,const float* src1G,const float* src1B,
                          float* dstR,float* dstG,float* dstB,int w,int h,ptrdiff_t stride,float timestep,int pairKey,std::counting_semaphore<>* slots) const;
 private:
+    bool frameCacheEnabled=false;
+    struct SourceFrame;
+    mutable std::mutex sourceMutex;
+    mutable std::map<int,std::shared_ptr<SourceFrame>> sourceCache;
+    mutable uint64_t sourceClock=0;
+    std::shared_ptr<SourceFrame> sourceFrame(int key) const;
+    int uploadSource(const std::shared_ptr<SourceFrame>& frame,const float* r,const float* g,const float* b,
+                     int w,int h,ptrdiff_t stride) const;
+    int process_v4_shared(const float* r0,const float* g0,const float* b0,
+                          const float* r1,const float* g1,const float* b1,
+                          float* r,float* g,float* b,int w,int h,ptrdiff_t stride,float timestep,
+                          int pairKey,std::counting_semaphore<>* slots) const;
     bool memoryOptimized=false;
     mutable ncnn::PoolAllocator hostPool;
     struct PairInputs;

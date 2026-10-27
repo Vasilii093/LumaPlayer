@@ -1,6 +1,6 @@
 # LumaPlayer source repository
 
-This private source snapshot corresponds to LumaPlayer-1080p-Optimized.zip,
+This private source snapshot corresponds to LumaPlayer-1080p-FrameCache.zip,
 including the glass icon, equalizer presets and the 1080p throughput integration.
 
 Main entry points:
@@ -20,3 +20,5 @@ revisions are documented beside their build scripts. See licenses/ for bundled n
 The 1080p goal is not yet met on all content: the heavy comparison measured 0.925x.
 The 90s guarded null-output test measured 1.124x without cache starvation.
 These measurements do not establish sustained physical-display 1080p60.
+
+Update 2026-10-27: per-source-frame GPU cache, overlapped CPU readback and file-local display sync. See source/FRAMECACHE-VALIDATION.md for tests and measured limits.

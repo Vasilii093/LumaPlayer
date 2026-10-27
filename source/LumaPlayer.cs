@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Diagnostics;
@@ -266,6 +266,20 @@ namespace Luma {
         double duration;
         int requestId;
         double dropped;
+        readonly Dictionary<string,string> playbackMetrics=new Dictionary<string,string>();
+        int cacheStalls;
+        bool waitingForCache;
+        static readonly string[] DiagnosticProperties={"decoder-frame-drop-count","mistimed-frame-count","vo-delayed-frame-count","display-fps","estimated-display-fps","container-fps","display-sync-active","avsync","paused-for-cache"};
+        string Metric(string key){string value;return playbackMetrics.TryGetValue(key,out value)?value:"н/д";}
+        void UpdateMetric(string name,object value) {
+            string text=value==null?"н/д":value is bool?(Convert.ToBoolean(value)?"да":"нет"):(value is double ? ((double)value).ToString("0.###",System.Globalization.CultureInfo.InvariantCulture) : Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture));
+            playbackMetrics[name]=text;
+            if(name=="paused-for-cache") {
+                bool waiting=value!=null && Convert.ToBoolean(value);
+                if(waiting && !waitingForCache && cache!=null && cacheFileLoaded && position>cacheOrigin+1)cacheStalls++;
+                waitingForCache=waiting;
+            }
+        }
         int videoParamsRequest;
         string decoder = "—";
         string currentFile, pipeName = "luma-player";
@@ -418,6 +432,7 @@ namespace Luma {
                         Send("observe_property",1,"time-pos"); Send("observe_property",2,"duration");
                         Send("observe_property",3,"pause");
                         Send("observe_property",5,"frame-drop-count"); Send("observe_property",6,"hwdec-current");
+                        for(int i=0;i<DiagnosticProperties.Length;i++)Send("observe_property",20+i,DiagnosticProperties[i]);
                         Send("request_log_messages","warn");
                         UI(delegate { ready=true; info.Text="Готово · откройте файл"; if(startupFile!=null) LoadFile(startupFile); });
                         string line;
@@ -457,6 +472,12 @@ namespace Luma {
                                 UI(delegate { if(cache!=null) CacheEnded(); });
                             if(ev=="end-file" && obj.ContainsKey("reason") && Convert.ToString(obj["reason"])=="error")
                                 UI(delegate { empty.Visible=true; info.Text="Не удалось открыть файл · см. logs/mpv.log"; });
+                            if(ev=="property-change" && obj.ContainsKey("name") && Array.IndexOf(DiagnosticProperties,Convert.ToString(obj["name"]))>=0) {
+                                string metricName=Convert.ToString(obj["name"]);
+                                object metricValue=obj.ContainsKey("data")?obj["data"]:null;
+                                UI(delegate {UpdateMetric(metricName,metricValue);});
+                                continue;
+                            }
                             if(ev!="property-change" || !obj.ContainsKey("data") || obj["data"]==null) continue;
                             string name=Convert.ToString(obj["name"]); object data=obj["data"];
                             UI(delegate {
@@ -617,7 +638,7 @@ namespace Luma {
             UpdateCacheStatus();return true;
         }
         void LoadCacheStream(double offset) {
-            Send("loadfile",cacheStream.Url,"replace",-1,new Dictionary<string,string>{{"aid","auto"},{"demuxer","lavf"},{"demuxer-lavf-format","mpegts"},{"cache","yes"},{"cache-secs","5"},{"demuxer-max-bytes","32MiB"},{"demuxer-max-back-bytes","0"},{"force-seekable","yes"},{"hr-seek","yes"},{"start",offset.ToString("0.######",System.Globalization.CultureInfo.InvariantCulture)}});
+            Send("loadfile",cacheStream.Url,"replace",-1,new Dictionary<string,string>{{"aid","auto"},{"video-sync","display-resample"},{"video-sync-max-video-change","0.2"},{"demuxer","lavf"},{"demuxer-lavf-format","mpegts"},{"cache","yes"},{"cache-secs","5"},{"demuxer-max-bytes","32MiB"},{"demuxer-max-back-bytes","0"},{"force-seekable","yes"},{"hr-seek","yes"},{"start",offset.ToString("0.######",System.Globalization.CultureInfo.InvariantCulture)}});
             Send("set_property","pause",false);
         }
         void BeginCache(double from) {
@@ -632,7 +653,7 @@ namespace Luma {
             try { session=new PreRenderSession(root,currentFile,from,duration,fps,ProcessingHeight,
                 protection.SelectedIndex,false,selectedAudio,15,PreRenderSession.DefaultLimit,23,true,true); }
             catch(Exception ex) { MessageBox.Show("Не удалось создать кэш: "+ex.Message,"Luma"); return; }
-            cache=session; position=from; cacheOrigin=from;
+            cache=session; position=from; cacheOrigin=from; cacheStalls=0; waitingForCache=false;
             cacheStream=new CacheStream();
             cacheStream.Failed=delegate(string message){UI(delegate{if(cache==session){cacheMessage="Ошибка потока кэша: "+message;UpdateCacheStatus();}});};
             session.Measured=delegate(double seconds,double elapsed) { UI(delegate { if(cache!=session) return; cacheMessage="Подготовка "+(seconds/elapsed).ToString("0.00")+"×"+(seconds<elapsed ? " · запас расходуется быстрее пополнения" : ""); }); }; cacheMessage="Подготовка начального запаса…";
@@ -838,9 +859,17 @@ namespace Luma {
             }
         }
         void ShowGpu() {
-            MessageBox.Show("RIFE "+ProcessingHeight+"p: генерация 60 FPS на GPU с последующим масштабированием под экран.\n\n"+
+            MessageBox.Show("Сборка 27.10 · Frame cache\nRIFE "+ProcessingHeight+"p: генерация 60 FPS на GPU с последующим масштабированием под экран.\n\n"+
                 "Кэш до 10 ГБ; просмотренные части удаляются. Бирюзовые участки шкалы уже готовы: переход внутри них не перезапускает подготовку.\n\n"+
-                "Декодер: "+decoder+"\nПропуски вывода: "+dropped.ToString("0")+"\n"+
+                "Декодер: "+decoder+"\nПропуски вывода: "+dropped.ToString("0")+
+                "\nПропуски декодера: "+Metric("decoder-frame-drop-count")+
+                "\nКоррекции времени кадров: "+Metric("mistimed-frame-count")+
+                "\nЗадержки вывода (оценка): "+Metric("vo-delayed-frame-count")+
+                "\nЧастота экрана: "+Metric("display-fps")+" Гц; оценка: "+Metric("estimated-display-fps")+
+                "\nЧастота видео: "+Metric("container-fps")+" FPS"+
+                "\nСинхронизация с экраном: "+Metric("display-sync-active")+
+                "\nРассинхронизация A/V: "+Metric("avsync")+" с"+
+                "\nОстановки из-за пустого буфера: "+cacheStalls+"\n\n"+
                 (playbackNotice.Length>0 && File.Exists(Path.Combine(root,"logs","prerender-error.txt")) ? File.ReadAllText(Path.Combine(root,"logs","prerender-error.txt")) : cache!=null ? cacheMessage : "Для подготовки видео заранее нажмите «Подготовить кэш»."),"Диагностика");
         }
         void ApplyScreenFit() {
