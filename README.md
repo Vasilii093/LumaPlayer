@@ -1,42 +1,34 @@
-# LumaPlayer — 0.3 exp
+# Luma Player — облегчённая сборка RIFE 900p / 60 FPS
 
-This repository is the source snapshot of the portable **0.3 exp** build.
-It is the baseline for subsequent work. The executable and installed runtime
-remain in the local `LumaPlayer-0.3-exp` folder; generated caches, logs, video,
-runtime binaries and model weights are not stored in this source repository.
-`BASELINE-HASHES.json` identifies the baseline executable and key dependencies.
+Запускайте **LumaPlayer.exe**. Для переноса нужна вся эта папка вместе с `engine`. Установка Python, TensorRT или CUDA Toolkit не требуется. Обработка локальная; необходим установленный драйвер видеокарты. Проверенная конфигурация — RTX 5070 Ti Laptop.
 
-## Active implementation
+## Воспроизведение
 
-- `source/LumaPlayer.cs`: Windows UI, playback and cache coordination.
-- `source/PreRenderSession.cs`: mpv producer, cache limits and stream delivery.
-- `source/CacheMaintenance.cs`: cache ownership and manifest handling.
-- `engine/gpu/interpolate-rife-resident.vpy`: 720p and 1080p RIFE path.
-  The 1080p VapourSynth frame-cache limit is 1024 MiB.
-- `engine/gpu/interpolate-rife-throughput.vpy`: optimized 900p path.
-- `source/native-rife/` and `source/native-rife-memory/`: matching native RIFE
-  source and build instructions for the shipped 720p/1080p and 900p backends.
+Откройте видео, выберите **60 FPS · RIFE 900p (кэш)** и нажмите **Подготовить кэш**. Просмотр начнётся после подготовки начального запаса. Для 16:9 обработка идёт в 1600×900, 60 FPS, с масштабированием под экран. Пропорции других исходников сохраняются; небольшие исходники перед обработкой не увеличиваются.
 
-The producer pauses at 240 seconds of prepared video and resumes below 240
-seconds, subject to the separate disk-space limit. GPU-direct Vulkan to NVENC,
-the later per-source-frame GPU cache, and the fully asynchronous pipeline are
-not included in 0.3 exp. Earlier experiments remain in Git history and local
-research folders; do not treat them as part of this baseline.
+Сохранены исходный режим, RIFE 720p и экспериментальный профиль 1080p. Настройки по умолчанию соответствуют эталону. Генерация 900p включается кнопкой подготовки, а не одним выбором профиля. Перед сменой профиля вернитесь в обычный режим.
 
-## Build and validation
+## Что оптимизировано
 
-On Windows, `source/build.ps1` compiles the player in an existing portable
-package containing the required runtime and model files. Native build scripts
-specify the pinned ncnn revision and require a compatible compiler and
-VapourSynth headers. They also refer to an `engine/runtime-trt` CMake installation,
-which is not present in the portable 0.3 exp package; supply or adapt that build
-dependency separately. This source-only repository is not a standalone portable
-distribution. Preserve the separately installed 0.3 exp package and verify its
-component hashes before using it as the build environment.
+- Из комплекта исключены экспериментальные TensorRT/CUDA/MEMC-компоненты, лишние модели, инструменты старого Python-окружения и тестовые EXE.
+- NumPy с бинарными библиотеками и лицензиями перенесён в `engine/runtime`. Зависимости от старой папки `runtime-trt` нет.
+- Список частей читается по мере дописывания; неполная строка не считается готовым сегментом.
+- Размеры завершённых частей учитываются без постоянного обхода каталога. Растущие файлы проверяются отдельно; изменения состава кэша отслеживаются уведомлениями и периодической сверкой. Лимит и резерв места сохранены.
+- Диапазоны шкалы перестраиваются при добавлении и удалении частей. Текстовый статус во время просмотра обновляется до четырёх раз в секунду; указатель позиции продолжает следовать воспроизведению.
+- Убрана неиспользуемая телеметрия старого интерполятора и исключён из сборки прежний NVIDIA-фильтр.
 
-Do not publish a new version when the measured preparation speed is below 1×.
-One fast short run does not establish stable 1080p60; validate on difficult
-scenes with real playback, audio, cache, seeking and the physical display.
+Модель RIFE, VPy-фильтры, GPU-библиотеки, защита сцен, параметры кодирования и аудиофильтры совпадают с эталоном. Уменьшение размера комплекта не означает такого же ускорения нейросети.
 
-Previously unsuccessful FP16 arithmetic, TensorRT, lite/hybrid, MEMC and
-batch=1 experiments should not be repeated without new concrete evidence.
+## Управление
+
+Нажатие на шкалу переводит к выбранному времени. Бирюзовые участки — готовый кэш. Перемотка внутри сохранённой области не запускает подготовку заново. Данные удерживаются примерно 30 секунд после просмотра, затем удаляются. Кэш ограничен 10 ГиБ. При запасе около 120 секунд обработчик приостанавливается; при снижении до 60 секунд возобновляется.
+
+F11 — полный экран, Escape — возврат. Панель скрывается после трёх секунд бездействия, появляется при нажатии или движении мыши вниз. Доступны вписывание, заполнение, растяжение и размер окна 2560×1600.
+
+В окне «Звук» доступны пять полос эквалайзера и усиление до +12 дБ с ограничителем пиков. Звуковая обработка соответствует эталону; для тихой дорожки начните с +3 дБ.
+
+## Ограничения и проверка
+
+Кэш содержит одну выбранную аудиодорожку. Субтитры и смена дорожек при просмотре кэша пока недоступны. HEVC/AAC используют сжатие с потерями; сохранение HDR-метаданных не подтверждено. Защита сложных переходов может удерживать исходный кадр.
+
+Результаты проверок: `source/OPTIMIZATION-VALIDATION.md`. Исходники и лицензии включены. Сборка C# — `source/build.ps1`; по умолчанию включены NativeRife и RifeThroughput. Эталонная версия сохранена отдельно.
