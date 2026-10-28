@@ -1,15 +1,7 @@
-# Baseline and project boundaries
+# Текущая основа проекта
 
-Current baseline: **LumaPlayer 0.3 exp**, selected by the project owner.
-The `main` tree contains only code and notices corresponding to that baseline;
-past branches, builds and research results are historical, not current code.
+Текущая рабочая экспериментальная версия — **0.3.3 exp**, локальный комплект `work/LumaPlayer-0.3.3-exp` в рабочей области Codex. Продолжать анализ на её основе; Graphify может отставать от GitHub, перед анализом проверять индексированный коммит.
 
-The local 0.3 exp application is the build and runtime reference. Keep copies
-of its runtime and model dependencies; source files here alone do not rebuild
-those binary dependencies. The SHA-256 values in `BASELINE-HASHES.json` record
-the binaries used when this snapshot was created.
+Исходники интерфейса — `source/LumaPlayer.cs`; 1080p VPy — `engine/gpu/interpolate-rife-resident.vpy`; изменённые файлы ncnn для экспериментального шейдера — `source/experimental-concat/`. Для сборки нативной DLL нужны соответствующие исходники ncnn, toolchain, заголовки VapourSynth и CMake; проектные скрипты ссылаются на отсутствующий в комплекте `engine/runtime-trt`.
 
-The most recent 1080p experiments reported speeds below 1× on difficult scenes.
-Do not release versions under 1×. GPU-direct remains experimental research and
-is not integrated in the baseline. The 0.4 exp 2048 MiB test and the later
-GPU-direct prototype are not the selected baseline.
+Сохранённые в корне EXE, package-manifest и BASELINE-HASHES относятся к прежней версии 0.3 exp, а не к 0.3.3 exp. Они оставлены для истории. Готовый комплект 0.3.3 exp не опубликован. Не выпускать версию с измеренной скоростью подготовки ниже 1×. Отдельный прогон 0.3.3 exp показал 0,831×, см. документацию; пользователь сообщил о колебаниях 0,95–1,17× на предыдущей рабочей копии. GPU-direct Vulkan → NVENC не интегрирован.

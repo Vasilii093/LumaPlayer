@@ -181,8 +181,9 @@ namespace Luma {
             if(same) for(int i=0;i<next.Length;i++) if(next[i][0]!=cached[i][0] || next[i][1]!=cached[i][1]){same=false;break;}
             if(!same){cached=next;Invalidate();}
         }
+        public double FractionAt(int x) { return Math.Max(0,Math.Min(1,(x-8)/(double)Math.Max(1,Width-16))); }
         void SetAt(int x) {
-            Value=Minimum+(int)Math.Round(Math.Max(0,Math.Min(1,(x-8)/(double)Math.Max(1,Width-16)))*(Maximum-Minimum));
+            Value=Minimum+(int)Math.Round(FractionAt(x)*(Maximum-Minimum));
         }
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);
@@ -226,6 +227,12 @@ namespace Luma {
         ClickSeekBar seek = new ClickSeekBar();
         TrackBar volume = new RoundedVolume();
         readonly ToolTip seekTip=new ToolTip();
+        int lastSeekTipSecond=-1, lastSeekTipX=-1000;
+        bool captionHidden;
+        DateTime lastCaptionInteraction=DateTime.UtcNow;
+        [DllImport("user32.dll", EntryPoint="GetWindowLongW")] static extern int GetWindowStyle(IntPtr window,int index);
+        [DllImport("user32.dll", EntryPoint="SetWindowLongW")] static extern int SetWindowStyle(IntPtr window,int index,int value);
+        [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window,IntPtr after,int x,int y,int cx,int cy,uint flags);
         readonly List<Dictionary<string,object>> audioTracks=new List<Dictionary<string,object>>();
         int audioTracksRequest;
         bool sourceLoaded;
@@ -288,7 +295,14 @@ namespace Luma {
             empty.Dock = DockStyle.Fill; video.Controls.Add(empty);
             empty.Click += delegate { Open(); };
             seek.Minimum = 0; seek.Maximum = 10000;
-            seekTip.SetToolTip(seek,"Бирюзовый — готовый кэш · фиолетовый — просмотрено");
+            seek.MouseMove += delegate(object sender,MouseEventArgs e) {
+                if(duration<=0 || Double.IsNaN(duration) || Double.IsInfinity(duration)) return;
+                int seconds=(int)Math.Min(int.MaxValue,Math.Floor(duration*seek.FractionAt(e.X)));
+                if(seconds==lastSeekTipSecond && Math.Abs(e.X-lastSeekTipX)<16) return;
+                lastSeekTipSecond=seconds; lastSeekTipX=e.X;
+                seekTip.Show(Clock(seconds),seek,Math.Max(0,Math.Min(seek.Width-1,e.X)),-30,2000);
+            };
+            seek.MouseLeave += delegate { seekTip.Hide(seek); lastSeekTipSecond=-1; lastSeekTipX=-1000; };
             seek.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
             seek.SetBounds(15,8,1045,26); seek.BackColor = bg;
             seek.MouseDown += delegate(object sender,MouseEventArgs e) { if(e.Button==MouseButtons.Left) dragging = true; };
@@ -353,7 +367,7 @@ namespace Luma {
             KeyDown += HandleKey;
             DragEnter += delegate(object s, DragEventArgs e) { if(e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect=DragDropEffects.Copy; };
             DragDrop += delegate(object s, DragEventArgs e) { var f=(string[])e.Data.GetData(DataFormats.FileDrop); if(f.Length>0) LoadFile(f[0]); };
-            FormClosing += delegate { chromeTimer.Stop(); chromeTimer.Dispose(); Shutdown(); };
+            FormClosing += delegate { chromeTimer.Stop(); chromeTimer.Dispose(); seekTip.Dispose(); Shutdown(); };
             chromeTimer.Interval=100; chromeTimer.Tick += delegate { UpdateChrome(); }; chromeTimer.Start();
             Shown += delegate { StartEngine(); };
         }
@@ -803,7 +817,7 @@ namespace Luma {
             }
         }
         void ShowGpu() {
-            MessageBox.Show("Сборка 0.3 exp · кэш кадров 1080p: 1024 МиБ · запас до 240 с\n"+
+            MessageBox.Show("Сборка 0.3.3 exp · кэш кадров 1080p: 1024 МиБ · запас до 240 с\n"+
                 "RIFE "+ProcessingHeight+"p: генерация 60 FPS на GPU с последующим масштабированием под экран.\n\n"+
                 "Кэш до 10 ГБ; просмотренные части удаляются. Бирюзовые участки шкалы уже готовы: переход внутри них не перезапускает подготовку.\n\n"+
                 "Декодер: "+decoder+"\nПропуски вывода: "+dropped.ToString("0")+"\n"+
@@ -821,11 +835,27 @@ namespace Luma {
             Size=new Size(Math.Min(wanted.Width,area.Width),Math.Min(wanted.Height,area.Height));
             Location=new Point(area.Left+(area.Width-Width)/2,area.Top+(area.Height-Height)/2);
         }
+        void SetCaptionVisible(bool visible) {
+            if(!IsHandleCreated || fullscreen || captionHidden==!visible) return;
+            const int GWL_STYLE=-16, WS_CAPTION=0x00C00000;
+            int style=GetWindowStyle(Handle,GWL_STYLE);
+            int next=visible ? style|WS_CAPTION : style & ~WS_CAPTION;
+            SetWindowStyle(Handle,GWL_STYLE,next);
+            SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x0001|0x0002|0x0004|0x0010|0x0020);
+            captionHidden=!visible;
+            LayoutChrome();
+        }
         void ShowChrome() { controls.Visible=true; controls.BringToFront(); lastInteraction=DateTime.UtcNow; }
         void UpdateChrome() {
             if(closing) return;
-            if(currentFile==null || dialogOpen) { lastInteraction=DateTime.UtcNow; return; }
+            if(currentFile==null || dialogOpen) { lastInteraction=DateTime.UtcNow; lastCaptionInteraction=DateTime.UtcNow; if(!fullscreen) SetCaptionVisible(true); return; }
             Point pointer=Cursor.Position, local=PointToClient(pointer);
+            if(!fullscreen && WindowState!=FormWindowState.Minimized) {
+                Rectangle b=Bounds;
+                bool nearTop=pointer.X>=b.Left && pointer.X<b.Right && pointer.Y>=b.Top && pointer.Y<b.Top+48;
+                if(GetForegroundWindow()==Handle && nearTop) { lastCaptionInteraction=DateTime.UtcNow; SetCaptionVisible(true); }
+                else if((DateTime.UtcNow-lastCaptionInteraction).TotalSeconds>3) SetCaptionVisible(false);
+            }
             bool inside=ClientRectangle.Contains(local), left=(GetAsyncKeyState(1)&0x8000)!=0;
             bool moved=pointer!=lastPointer;
             bool menu=quality.DroppedDown || motion.DroppedDown || protection.DroppedDown || buffer.DroppedDown || windowSize.DroppedDown;
@@ -836,6 +866,7 @@ namespace Luma {
         }
         void Fullscreen() {
             if(!fullscreen) {
+                SetCaptionVisible(true);
                 var screen=Screen.FromControl(this).Bounds;
                 oldState=WindowState; oldBounds=oldState==FormWindowState.Normal ? Bounds : RestoreBounds;
                 fullscreen=true; WindowState=FormWindowState.Normal; FormBorderStyle=FormBorderStyle.None; Bounds=screen;
@@ -846,7 +877,7 @@ namespace Luma {
                 ShowChrome();
             } else {
                 fullscreen=false; controls.Visible=true; controls.Dock=DockStyle.None;
-                FormBorderStyle=FormBorderStyle.Sizable; Bounds=oldBounds; WindowState=oldState; LayoutChrome(); ShowChrome();
+                FormBorderStyle=FormBorderStyle.Sizable; captionHidden=false; lastCaptionInteraction=DateTime.UtcNow; Bounds=oldBounds; WindowState=oldState; LayoutChrome(); ShowChrome();
             }
         }
         void HandleKey(object sender,KeyEventArgs e) {

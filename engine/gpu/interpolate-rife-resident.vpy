@@ -8,17 +8,21 @@ core = vs.core
 core.num_threads = 4
 core.max_cache_size = 256
 here = os.path.dirname(os.path.abspath(__file__))
-native_dir=os.path.join(here,"rife-native")
-_native_dll_path=os.add_dll_directory(native_dir)
-if not hasattr(core, "rifebatch"):
-    core.std.LoadPlugin(path=os.path.join(native_dir, "librife-native.dll"))
-
 # mpv passes fps|processing-height|protection. 0 keeps source resolution.
 settings = str(user_data).split("|")
 target_fps = int(settings[0])
 processing_height = int(settings[1]) if len(settings) > 1 else 0
 if processing_height == 1080:
     core.max_cache_size = 1024
+# Experimental 1080p only: direct staging to remove redundant host copies.
+if processing_height == 1080:
+    os.environ["LUMA_RIFE_MEMORY"] = "1"
+    native_dir = os.path.join(here, "rife-memory")
+else:
+    native_dir = os.path.join(here, "rife-native")
+_native_dll_path = os.add_dll_directory(native_dir)
+if not hasattr(core, "rifebatch"):
+    core.std.LoadPlugin(path=os.path.join(native_dir, "librife-native.dll"))
 protection = int(settings[2]) if len(settings) > 2 else 0
 model = int(settings[3]) if len(settings) > 3 else 23
 gpu_threads = int(settings[4]) if len(settings) > 4 else 2
