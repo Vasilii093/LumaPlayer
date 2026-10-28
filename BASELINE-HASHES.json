@@ -1,0 +1,12 @@
+{
+  "version": "0.3 exp",
+  "sha256": {
+    "LumaPlayer.exe": "1226f2604e97bb5f72f0349aabae6d4cd5275840655aa11f25afe376ad6d4072",
+    "engine/gpu/rife-native/librife-native.dll": "30d135b5c69096d11fcb10ca78a96c1590173a4242c6f395f5cdaa4304aaf2f8",
+    "engine/gpu/rife-memory/librife-native.dll": "9684f30e3f5a1d3ce4af8b8ea8054efeb76a23553bf8c04d8cb70ae075fa7c6e",
+    "engine/gpu/models/rife-v4.6_ensembleFalse/flownet.param": "ae9b08af43fba97e27aa2c40c04c35b1a75f637b2d2b01a941fa94361ab25cbd",
+    "engine/gpu/models/rife-v4.6_ensembleFalse/flownet.bin": "03393cf14fe6d0af015d24d93bae1e5925f2828cb3b6555300a132643c617aa5",
+    "engine/mpv.exe": "317641a1e8bb4457585d5233e44ec3da3a88ace1e8730f28e4f16a76e715b534",
+    "engine/runtime/python.exe": "4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a"
+  }
+}

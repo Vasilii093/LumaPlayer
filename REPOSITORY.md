@@ -1,24 +1,15 @@
-# LumaPlayer source repository
+# Baseline and project boundaries
 
-This private source snapshot corresponds to LumaPlayer-1080p-FrameCache.zip,
-including the glass icon, equalizer presets and the 1080p throughput integration.
+Current baseline: **LumaPlayer 0.3 exp**, selected by the project owner.
+The `main` tree contains only code and notices corresponding to that baseline;
+past branches, builds and research results are historical, not current code.
 
-Main entry points:
-- source/LumaPlayer.cs: WinForms UI, playback, equalizer and cache control.
-- source/PreRenderSession.cs: persistent mpv producer and cache transport.
-- source/CacheMaintenance.cs: manifest and storage accounting.
-- engine/gpu/*.vpy: VapourSynth interpolation graphs.
-- source/native-rife/: resident input implementation used by 720p.
-- source/native-rife-memory/: optimized transfer implementation used by 900p/1080p.
-- source/HD1080-OPTIMIZATION.md: measurements and remaining limitations.
+The local 0.3 exp application is the build and runtime reference. Keep copies
+of its runtime and model dependencies; source files here alone do not rebuild
+those binary dependencies. The SHA-256 values in `BASELINE-HASHES.json` record
+the binaries used when this snapshot was created.
 
-Run source/build.ps1 on Windows to compile the C# application. Playback also
-requires the engine binaries and model weights from the existing portable package;
-they are not included in this source repository. Native dependencies and pinned
-revisions are documented beside their build scripts. See licenses/ for bundled notices.
-
-The 1080p goal is not yet met on all content: the heavy comparison measured 0.925x.
-The 90s guarded null-output test measured 1.124x without cache starvation.
-These measurements do not establish sustained physical-display 1080p60.
-
-Update 2026-10-27: per-source-frame GPU cache, overlapped CPU readback and file-local display sync. See source/FRAMECACHE-VALIDATION.md for tests and measured limits.
+The most recent 1080p experiments reported speeds below 1× on difficult scenes.
+Do not release versions under 1×. GPU-direct remains experimental research and
+is not integrated in the baseline. The 0.4 exp 2048 MiB test and the later
+GPU-direct prototype are not the selected baseline.

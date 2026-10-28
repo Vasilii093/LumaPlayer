@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Diagnostics;
@@ -28,10 +28,10 @@ namespace Luma {
 #else
         public const bool RifeThroughput = false;
 #endif
-        public static bool FastHD(int model,int height){return NativeRife && RifeThroughput && model==23 && (height==900 || height==1080);}
+        public static bool Fast900(int model,int height){return NativeRife && RifeThroughput && model==23 && height==900;}
         public static string RifeScript(int model, int height) {
             if(model!=23 || (height!=720 && height!=900 && height!=1080)) throw new ArgumentException("Unsupported RIFE profile");
-            if(FastHD(model,height))return "interpolate-rife-throughput.vpy";
+            if(Fast900(model,height))return "interpolate-rife-throughput.vpy";
             return "interpolate-rife-resident.vpy";
         }
         public const long DefaultLimit = 10L * 1024 * 1024 * 1024;
@@ -61,13 +61,12 @@ namespace Luma {
         public int CacheDirectoryScans {get {return usage==null ? 0 : usage.DirectoryScans;}}
         volatile bool cancelled;
         bool bufferSatisfied;
-        // Hysteresis gives playback long quiet intervals without reloading RIFE.
+        // Keep preparing whenever the playback buffer is below the target.
         public void UpdatePlaybackBuffer(double seconds, bool playbackStarted) {
             if(Double.IsNaN(seconds) || Double.IsInfinity(seconds)) return;
             lock(gate) {
                 if(!playbackStarted || model!=23 || (height!=720 && height!=900 && height!=1080)) bufferSatisfied=false;
-                else if(seconds>=120) bufferSatisfied=true;
-                else if(seconds<=60) bufferSatisfied=false;
+                else bufferSatisfied=seconds>=240;
             }
         }
         long measuredBytes;
@@ -182,7 +181,7 @@ namespace Luma {
             // retain a small context at both edges for correct interpolation.
             string graph="lavfi=[trim=start="+Number(Math.Max(0,position-0.15))+":end="+Number(position+length+0.5)+"],"+
                 "vapoursynth=file=%"+Encoding.UTF8.GetByteCount(path)+"%"+path+
-                ":buffered-frames="+(FastHD(model,height) ? 6 : 4)+":concurrent-frames="+(FastHD(model,height) ? 6 : 4)+":user-data="+fps+"|"+height+"|"+protection+"|"+model+"|"+(FastHD(model,height) ? 3 : 2)+
+                ":buffered-frames="+(Fast900(model,height) ? 6 : 4)+":concurrent-frames="+(Fast900(model,height) ? 6 : 4)+":user-data="+fps+"|"+height+"|"+protection+"|"+model+"|"+(Fast900(model,height) ? 3 : 2)+
                 ",lavfi=[fps=fps="+fps+":round=near,trim=start="+Number(position)+":end="+Number(position+length)+"]";
             // The playback GPU scales to the window; do not upscale on CPU
             // and encode the larger frames into the disk cache.

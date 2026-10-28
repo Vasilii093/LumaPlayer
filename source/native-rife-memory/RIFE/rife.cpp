@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <cstring>
 #include <chrono>
 #include <cstdio>
 #include <array>
@@ -26,17 +25,6 @@
 #include "rife_ops.h"
 
 DEFINE_LAYER_CREATOR(Warp)
-
-struct RIFE::SourceFrame {
-    ncnn::VulkanDevice* device;
-    ncnn::VkAllocator* allocator;
-    ncnn::VkMat image;
-    std::mutex mutex;
-    bool ready=false;
-    uint64_t touched=0; // protected by sourceMutex
-    explicit SourceFrame(ncnn::VulkanDevice* d):device(d),allocator(d->acquire_blob_allocator()){}
-    ~SourceFrame(){image.release();device->reclaim_blob_allocator(allocator);}
-};
 
 struct RIFE::PairInputs {
     ncnn::VulkanDevice* device;
@@ -70,13 +58,11 @@ RIFE::RIFE(int gpuid, bool _tta_mode, bool _uhd_mode, int _num_threads, bool _ri
     rife_v4 = _rife_v4;
     padding = _padding;
     memoryOptimized=std::getenv("LUMA_RIFE_MEMORY")!=nullptr;
-    frameCacheEnabled=std::getenv("LUMA_RIFE_FRAMECACHE") && std::strcmp(std::getenv("LUMA_RIFE_FRAMECACHE"),"1")==0;
     hostPool.set_size_compare_ratio(1.0f);
 }
 
 RIFE::~RIFE()
 {
-    sourceCache.clear();
     inputCache.clear();
     // cleanup preprocess and postprocess pipeline
     {
@@ -1562,8 +1548,6 @@ struct LumaProfile {
 int RIFE::process_v4_cached(const float* src0R,const float* src0G,const float* src0B,
  const float* src1R,const float* src1G,const float* src1B,float* dstR,float* dstG,float* dstB,
  int w,int h,ptrdiff_t stride,float timestep,int pairKey,std::counting_semaphore<>* slots) const {
-    if(memoryOptimized && frameCacheEnabled)
-        return process_v4_shared(src0R,src0G,src0B,src1R,src1G,src1B,dstR,dstG,dstB,w,h,stride,timestep,pairKey,slots);
     LumaProfile profile;
     std::shared_ptr<PairInputs> pair;
     {
@@ -1580,10 +1564,10 @@ int RIFE::process_v4_cached(const float* src0R,const float* src0G,const float* s
     }
     // ncnn tracks mutable Vulkan barriers on shared buffers. Serialize accesses
     // to one pair; independent pairs still use separate GPU workers.
-    std::unique_lock<std::mutex> pairLock(pair->mutex);
+    std::lock_guard<std::mutex> pairLock(pair->mutex);
     profile.mark(0);bool uploaded=!pair->ready;
     // Waiting for a sibling phase must not occupy a GPU worker permit.
-    struct Permit {std::counting_semaphore<>* s;explicit Permit(std::counting_semaphore<>* p):s(p){s->acquire();}void release(){if(s){s->release();s=nullptr;}}~Permit(){release();}} permit(slots);
+    struct Permit {std::counting_semaphore<>* s;explicit Permit(std::counting_semaphore<>* p):s(p){s->acquire();}~Permit(){s->release();}} permit(slots);
     profile.mark(1);
 
     const int channels = 3;//in0image.elempack;
@@ -1773,199 +1757,6 @@ int RIFE::process_v4_cached(const float* src0R,const float* src0G,const float* s
         profile.mark(8);
         if(status!=0) return status;
         pair->ready=true;
-        // GPU has finished; another phase can record/submit while this request
-        // copies its private readback. Keep all allocations alive until return.
-        pairLock.unlock();
-        permit.release();
-        if(memoryOptimized){outputStaging.allocator->invalidate(outputStaging.data);out=outputStaging.mapped();}
-
-        const float* outR{ out.channel(0) };
-        const float* outG{ out.channel(1) };
-        const float* outB{ out.channel(2) };
-        if(memoryOptimized) {
-            scalePlane(outR,w,dstR,stride,w,h,1/255.0f);scalePlane(outG,w,dstG,stride,w,h,1/255.0f);scalePlane(outB,w,dstB,stride,w,h,1/255.0f);
-        } else {
-        for (auto y{ 0 }; y < h; y++) {
-            for (auto x{ 0 }; x < w; x++) {
-                dstR[stride * y + x] = outR[w * y + x] * (1 / 255.0f);
-                dstG[stride * y + x] = outG[w * y + x] * (1 / 255.0f);
-                dstB[stride * y + x] = outB[w * y + x] * (1 / 255.0f);
-            }
-        }
-        }
-    }
-
-
-
-
-    profile.mark(9);
-    if(gpuProfile) {
-        std::vector<uint64_t> timestamps(5,0);
-        if(cmd.get_query_pool_results(0,5,timestamps)==0)for(int i=0;i<4;i++) {
-            if(timestamps[i+1]>=timestamps[i] && timestamps[i]>0)profile.gpu[i]=(timestamps[i+1]-timestamps[i])*vkdev->info.timestamp_period()/1000000.0;
-        }
-    }
-    profile.save(w,h,pairKey,timestep,uploaded);
-    return 0;
-
-}
-
-
-// Keep at most eight retained source frames. Active requests own shared_ptrs;
-// eviction cannot free an image still referenced by a submitted GPU command.
-std::shared_ptr<RIFE::SourceFrame> RIFE::sourceFrame(int key) const {
-    std::lock_guard<std::mutex> lock(sourceMutex);
-    auto it=sourceCache.find(key);
-    if(it!=sourceCache.end()){it->second->touched=++sourceClock;return it->second;}
-    if(sourceCache.size()>=8) {
-        auto victim=sourceCache.end();
-        for(auto i=sourceCache.begin();i!=sourceCache.end();++i)
-            if(i->second.use_count()==1 && (victim==sourceCache.end() || i->second->touched<victim->second->touched))victim=i;
-        if(victim!=sourceCache.end())sourceCache.erase(victim);
-    }
-    auto frame=std::make_shared<SourceFrame>(vkdev);frame->touched=++sourceClock;
-    // Out-of-order requests may temporarily pin every entry: don't grow the map.
-    if(sourceCache.size()<8)sourceCache.emplace(key,frame);
-    return frame;
-}
-
-int RIFE::uploadSource(const std::shared_ptr<SourceFrame>& frame,const float* r,const float* g,const float* b,
-                      int w,int h,ptrdiff_t stride) const {
-    std::lock_guard<std::mutex> lock(frame->mutex);
-    if(frame->ready)return 0;
-    ncnn::VkAllocator* staging=vkdev->acquire_staging_allocator();
-    struct Release {ncnn::VulkanDevice* d;ncnn::VkAllocator* s;~Release(){d->reclaim_staging_allocator(s);}} release{vkdev,staging};
-    ncnn::Option opt=flownet.opt;
-    opt.blob_vkallocator=frame->allocator;opt.workspace_vkallocator=frame->allocator;opt.staging_vkallocator=staging;
-    ncnn::VkMat host,raw;
-    host.create(w,h,3,sizeof(float),1,staging);
-    if(host.empty())return -100;
-    ncnn::Mat mapped=host.mapped();
-    scalePlane(r,stride,mapped.channel(0),w,w,h,255.f);
-    scalePlane(g,stride,mapped.channel(1),w,w,h,255.f);
-    scalePlane(b,stride,mapped.channel(2),w,w,h,255.f);
-    staging->flush(host.data);
-    host.data->access_flags=VK_ACCESS_HOST_WRITE_BIT;host.data->stage_flags=VK_PIPELINE_STAGE_HOST_BIT;
-    ncnn::VkCompute cmd(vkdev);
-    cmd.record_clone(host,raw,opt);
-    const int wp=(w+padding-1)/padding*padding,hp=(h+padding-1)/padding*padding;
-    frame->image.create(wp,hp,3,opt.use_fp16_storage?2u:4u,1,frame->allocator);
-    if(frame->image.empty())return -100;
-    std::vector<ncnn::VkMat> bindings{raw,frame->image};
-    std::vector<ncnn::vk_constant_type> constants(6);
-    constants[0].i=raw.w;constants[1].i=raw.h;constants[2].i=raw.cstep;
-    constants[3].i=wp;constants[4].i=hp;constants[5].i=frame->image.cstep;
-    cmd.record_pipeline(rife_preproc,bindings,constants,frame->image);
-    const int result=cmd.submit_and_wait();
-    // Publish only after the upload/preprocess fence completes. Its memory
-    // dependency makes device writes available before subsequent submissions.
-    if(!result)frame->ready=true;
-    return result;
-}
-
-int RIFE::process_v4_shared(const float* src0R,const float* src0G,const float* src0B,
- const float* src1R,const float* src1G,const float* src1B,float* dstR,float* dstG,float* dstB,
- int w,int h,ptrdiff_t stride,float timestep,int pairKey,std::counting_semaphore<>* slots) const {
-    LumaProfile profile;
-    struct Permit {std::counting_semaphore<>* s;explicit Permit(std::counting_semaphore<>* p):s(p){s->acquire();}void release(){if(s){s->release();s=nullptr;}}~Permit(){release();}} permit(slots);
-    profile.mark(1);
-    auto a=sourceFrame(pairKey),b=sourceFrame(pairKey+1);
-    int result=uploadSource(a,src0R,src0G,src0B,w,h,stride);
-    if(result)return result;
-    result=uploadSource(b,src1R,src1G,src1B,w,h,stride);
-    if(result)return result;
-    profile.mark(0);
-    bool uploaded=false; // input preparation is recorded in pair_wait_ms for this path
-    const int channels=3;
-    ncnn::VkAllocator* blob_vkallocator=vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator=vkdev->acquire_staging_allocator();
-    struct Allocators {ncnn::VulkanDevice* d;ncnn::VkAllocator *b,*s;~Allocators(){d->reclaim_blob_allocator(b);d->reclaim_staging_allocator(s);}} release{vkdev,blob_vkallocator,staging_vkallocator};
-    ncnn::Option opt=flownet.opt;
-    opt.blob_vkallocator=blob_vkallocator;opt.workspace_vkallocator=blob_vkallocator;opt.staging_vkallocator=staging_vkallocator;opt.blob_allocator=&hostPool;
-    int w_padded=(w+padding-1)/padding*padding,h_padded=(h+padding-1)/padding*padding;
-    const size_t in_out_tile_elemsize=opt.use_fp16_storage?2u:4u;
-    // VkMat copies normally share mutable access/stage flags. Give each command
-    // private metadata while retaining the owner's refcount and GPU allocation.
-    // The owner and local view keep refcount >1, preventing in-place mutation.
-    // These metadata objects outlive cmd, its extractor and all pending work.
-    ncnn::VkBufferMemory state0=*a->image.data,state1=*b->image.data;
-    ncnn::VkMat in0_gpu_padded=a->image,in1_gpu_padded=b->image;
-    in0_gpu_padded.data=&state0;in1_gpu_padded.data=&state1;
-    ncnn::VkMat timestep_gpu_padded,out_gpu,outputStaging;
-    ncnn::VkCompute cmd(vkdev);
-    bool gpuProfile=profile.active && cmd.create_query_pool(5)==0;
-    if(gpuProfile)cmd.record_write_timestamp(0);
-    profile.mark(2);
-        {
-            timestep_gpu_padded.create(w_padded, h_padded, 1, in_out_tile_elemsize, 1, blob_vkallocator);
-
-            std::vector<ncnn::VkMat> bindings(1);
-            bindings[0] = timestep_gpu_padded;
-
-            std::vector<ncnn::vk_constant_type> constants(4);
-            constants[0].i = timestep_gpu_padded.w;
-            constants[1].i = timestep_gpu_padded.h;
-            constants[2].i = timestep_gpu_padded.cstep;
-            constants[3].f = timestep;
-
-            cmd.record_pipeline(rife_v4_timestep, bindings, constants, timestep_gpu_padded);
-        }
-
-        profile.mark(3);
-        profile.mark(4);
-        if(gpuProfile)cmd.record_write_timestamp(1);
-        // flownet
-        ncnn::VkMat out_gpu_padded;
-        {
-            ncnn::Extractor ex = flownet.create_extractor();
-            ex.set_blob_vkallocator(blob_vkallocator);
-            ex.set_workspace_vkallocator(blob_vkallocator);
-            ex.set_staging_vkallocator(staging_vkallocator);
-
-            ex.input("in0", in0_gpu_padded);
-            ex.input("in1", in1_gpu_padded);
-            ex.input("in2", timestep_gpu_padded);
-            ex.extract("out0", out_gpu_padded, cmd);
-        }
-
-        profile.mark(5);
-        if(gpuProfile)cmd.record_write_timestamp(2);
-        out_gpu.create(w, h, channels, sizeof(float), 1, blob_vkallocator);
-
-        // postproc
-        {
-            std::vector<ncnn::VkMat> bindings(2);
-            bindings[0] = out_gpu_padded;
-            bindings[1] = out_gpu;
-
-            std::vector<ncnn::vk_constant_type> constants(6);
-            constants[0].i = out_gpu_padded.w;
-            constants[1].i = out_gpu_padded.h;
-            constants[2].i = out_gpu_padded.cstep;
-            constants[3].i = out_gpu.w;
-            constants[4].i = out_gpu.h;
-            constants[5].i = out_gpu.cstep;
-
-            cmd.record_pipeline(rife_postproc, bindings, constants, out_gpu);
-        }
-
-
-    profile.mark(6);
-    if(gpuProfile)cmd.record_write_timestamp(3);
-    // download
-    {
-        ncnn::Mat out;
-
-        if(memoryOptimized)cmd.record_download_mapped(out_gpu,outputStaging,opt);
-        else cmd.record_clone(out_gpu,out,opt);
-
-        profile.mark(7);
-        if(gpuProfile)cmd.record_write_timestamp(4);
-        int status=cmd.submit_and_wait();
-        profile.mark(8);
-        if(status!=0) return status;
-        permit.release();
-
         if(memoryOptimized){outputStaging.allocator->invalidate(outputStaging.data);out=outputStaging.mapped();}
 
         const float* outR{ out.channel(0) };

@@ -28,7 +28,7 @@ class PlayerUiTests {
    Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==900,"900p selection");
    Check(!Encoding.UTF8.GetString(ms.ToArray()).Contains("vapoursynth"),"900p started slow live filter");
    mode.SelectedIndex=3;Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==1080,"1080p selection");
-   Check(PreRenderSession.RifeScript(23,900)==(PreRenderSession.RifeThroughput ? "interpolate-rife-throughput.vpy" : "interpolate-rife-resident.vpy") && PreRenderSession.RifeScript(23,1080)==(PreRenderSession.RifeThroughput ? "interpolate-rife-throughput.vpy" : "interpolate-rife-resident.vpy"),"HD native cache missing");
+   Check(PreRenderSession.RifeScript(23,900)==(PreRenderSession.RifeThroughput ? "interpolate-rife-throughput.vpy" : "interpolate-rife-resident.vpy") && PreRenderSession.RifeScript(23,1080)=="interpolate-rife-resident.vpy","HD native cache missing");
    mode.SelectedIndex=1;
    var seek=(ClickSeekBar)Field(p,"seek"); var sh=seek.Handle;
    typeof(Player).GetField("duration",F).SetValue(p,100.0);
@@ -55,7 +55,7 @@ class PlayerUiTests {
    var graph=(string)typeof(Player).GetMethod("AudioGraph",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{6,new int[]{2,0,3,0,-2}});
    File.WriteAllText("work/audio-test-graph.txt",graph);
    using(var bitmap=new Bitmap(panel.Width,panel.Height)){panel.DrawToBitmap(bitmap,new Rectangle(0,0,panel.Width,panel.Height));bitmap.Save("work/modern-ui-preview.png");}
-   var session=new PreRenderSession(Path.GetFullPath("work/ui-test-root"),"unused",0,100,60,720,1,false,"auto",15,PreRenderSession.DefaultLimit,23,true,true);
+   var session=new PreRenderSession(Path.GetFullPath("outputs/LumaPlayer-Optimized"),"unused",0,100,60,720,1,false,"auto",15,PreRenderSession.DefaultLimit,23,true,true);
    typeof(Player).GetField("cache",F).SetValue(p,session);
    var chunks=(System.Collections.Generic.Dictionary<string,PreparedChunk>)Field(p,"scheduled");
    for(int i=0;i<3;i++){string file=Path.Combine(session.Folder,i.ToString("D6")+".ts");File.WriteAllBytes(file,new byte[188]);chunks.Add(file,new PreparedChunk{Path=file,Start=i*15,Length=15});}
@@ -82,12 +82,12 @@ class PlayerUiTests {
    Check(Encoding.UTF8.GetString(ms.ToArray()).Contains("\"aid\":\"3\""),"Return to source lost selected track");
    Check((string)Field(p,"selectedAudio")=="3","Cache track overwrote source selection");
    ms.SetLength(0);
-   typeof(Player).GetMethod("LoadFile",F).Invoke(p,new object[]{Path.GetFullPath("work/ui-test-sample.mp4")});
+   typeof(Player).GetMethod("LoadFile",F).Invoke(p,new object[]{Path.GetFullPath("outputs/cache-test-sample.mp4")});
    Check((string)Field(p,"selectedAudio")=="auto" && !(bool)Field(p,"sourceLoaded"),"New file retained track selection or old loaded state");
    Check(Encoding.UTF8.GetString(ms.ToArray()).Contains("\"aid\":\"auto\""),"New source did not reset audio");
    Check(PreRenderSession.NormalizeAudioTrack(false)=="no" && PreRenderSession.NormalizeAudioTrack("False")=="no","Boolean aid leaked into command line");
    Check(PreRenderSession.NormalizeAudioTrack(null)=="auto" && PreRenderSession.NormalizeAudioTrack("3")=="3" && PreRenderSession.NormalizeAudioTrack("3 --bad")=="auto","Invalid audio normalization");
-   using(var normalized=new PreRenderSession(Path.GetFullPath("work/ui-test-root"),"unused",0,20,60,900,1,false,"False"))
+   using(var normalized=new PreRenderSession(Path.GetFullPath("outputs/LumaPlayer-Optimized"),"unused",0,20,60,900,1,false,"False"))
     Check((string)typeof(PreRenderSession).GetField("audio",F).GetValue(normalized)=="no","Constructor missed normalization");
    var sourceFailure=typeof(PreRenderSession).GetMethod("IsSourceFailure",BindingFlags.Static|BindingFlags.NonPublic);
    Check((bool)sourceFailure.Invoke(null,new object[]{"[mkv] mkv metadata beyond end of file - incomplete file?"}),"Truncated file not rejected");

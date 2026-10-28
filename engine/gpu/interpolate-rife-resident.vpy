@@ -17,6 +17,8 @@ if not hasattr(core, "rifebatch"):
 settings = str(user_data).split("|")
 target_fps = int(settings[0])
 processing_height = int(settings[1]) if len(settings) > 1 else 0
+if processing_height == 1080:
+    core.max_cache_size = 1024
 protection = int(settings[2]) if len(settings) > 2 else 0
 model = int(settings[3]) if len(settings) > 3 else 23
 gpu_threads = int(settings[4]) if len(settings) > 4 else 2

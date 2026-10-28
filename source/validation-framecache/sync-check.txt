@@ -1,1 +1,0 @@
-PASS: bundled mpv applies display-resample/0.2 to cache load and restores audio sync on next ordinary file
