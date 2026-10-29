@@ -1,14 +1,15 @@
 {
-  "date": "2026-10-26",
+  "version": "0.3.3.5 exp",
+  "baseline": "0.3.3.4 exp",
   "executable": "LumaPlayer.exe",
-  "content_bytes": 234255991,
+  "content_bytes": 245727659,
   "excludes": [
     "cache",
     "logs",
     "__pycache__",
-    "*.pyc"
+    "*.pyc",
+    "package-manifest.json"
   ],
-  "baseline_executable_sha256": "60198c776dbceea55650b4f01eb7602bf45006fd567a161b358e399e5f93fb00",
   "files": [
     {
       "path": "engine/d3dcompiler_43.dll",
@@ -17,13 +18,13 @@
     },
     {
       "path": "engine/gpu/interpolate-rife-resident.vpy",
-      "bytes": 4639,
-      "sha256": "693cd3b6880dbdb8a8001f34c650b6ea1e202609118c0051bf7713627ca81cba"
+      "bytes": 5026,
+      "sha256": "7da15cfbd62526c857843ae066a1ed33811a18e270fed14c1e17f84a866f7638"
     },
     {
       "path": "engine/gpu/interpolate-rife-throughput.vpy",
-      "bytes": 4681,
-      "sha256": "3a50b5ee9f415d31d119823b83a765e73bdb4d23cc0539c471c71ec632637a1b"
+      "bytes": 4749,
+      "sha256": "f19b126aa17c23c112f13a58423ef573a5701ba770813a779ddfbbc23eb791c9"
     },
     {
       "path": "engine/gpu/models/rife-v4.6_ensembleFalse/flownet.bin",
@@ -36,14 +37,24 @@
       "sha256": "ae9b08af43fba97e27aa2c40c04c35b1a75f637b2d2b01a941fa94361ab25cbd"
     },
     {
+      "path": "engine/gpu/models/rife-v4.6_ensembleFalse_residual/flownet.bin",
+      "bytes": 10629680,
+      "sha256": "03393cf14fe6d0af015d24d93bae1e5925f2828cb3b6555300a132643c617aa5"
+    },
+    {
+      "path": "engine/gpu/models/rife-v4.6_ensembleFalse_residual/flownet.param",
+      "bytes": 16017,
+      "sha256": "61b4171d0a5a2bb46c640cee5351cb7a92c0c7837b04ba562e5cb82723c3ae0e"
+    },
+    {
       "path": "engine/gpu/rife-memory/libc++.dll",
       "bytes": 2000384,
       "sha256": "c3f26685c18e1b6da5e6be86bd934e51472404e7dea850788d73fec4e922fded"
     },
     {
       "path": "engine/gpu/rife-memory/librife-native.dll",
-      "bytes": 5722112,
-      "sha256": "9684f30e3f5a1d3ce4af8b8ea8054efeb76a23553bf8c04d8cb70ae075fa7c6e"
+      "bytes": 5736960,
+      "sha256": "7e018cf7165ca1f273cd4bcbffb5db881b8bc1ea2bfcd3904632f26beab90270"
     },
     {
       "path": "engine/gpu/rife-memory/libunwind.dll",
@@ -82,8 +93,8 @@
     },
     {
       "path": "engine/gpu/rife-native/librife-native.dll",
-      "bytes": 5710848,
-      "sha256": "30d135b5c69096d11fcb10ca78a96c1590173a4242c6f395f5cdaa4304aaf2f8"
+      "bytes": 5718528,
+      "sha256": "88087f0d83c1de02ac8731d0b5f2385c9b965ab303acd76b24e678a3da901493"
     },
     {
       "path": "engine/gpu/rife-native/libunwind.dll",
@@ -5177,13 +5188,13 @@
     },
     {
       "path": "LumaPlayer.exe",
-      "bytes": 85504,
-      "sha256": "6639e8f7c5b8fdb5b4a829c32b8d4d1bf549412a62fb99cd2ce585eda7824445"
+      "bytes": 87552,
+      "sha256": "b6520d4fce921a9c2c7eebca6e7c841ce196f6c4099cc00723f0ee10cf96a46b"
     },
     {
       "path": "README.md",
-      "bytes": 5514,
-      "sha256": "17d710ebd621b522a161173f3838ce300e6f073b0fd9979fc6c008b25d75daed"
+      "bytes": 2557,
+      "sha256": "1dbdc7ee06278c9383f083be4072ba34ff266edbcd7f1c735a1cd1c9ecb047c5"
     },
     {
       "path": "source/AUDIO-CACHE-VALIDATION.md",
@@ -5201,9 +5212,119 @@
       "sha256": "c68c875b9ee41d99e24ec12e46cff0b48a654c6d7837c19d873ae4d31024a6d3"
     },
     {
+      "path": "source/experimental-concat/concat_vulkan.cpp",
+      "bytes": 69692,
+      "sha256": "abc53e6f8b33b4467ad32a84f358ea1d9a64e20a8da09fa8ee841aa0394ef478"
+    },
+    {
+      "path": "source/experimental-concat/concat_vulkan.h",
+      "bytes": 1688,
+      "sha256": "ae098272cf711a60d3ea149dc1339c7963c3212d4c913f56be0c537243d41f80"
+    },
+    {
+      "path": "source/experimental-concat/crop_vulkan.cpp",
+      "bytes": 41448,
+      "sha256": "2c345d20510a096fd2bc3dcf73b4ef826cfdc4bb7b9d4410f71388d6d5a6316b"
+    },
+    {
+      "path": "source/experimental-residual/BUILD.md",
+      "bytes": 3367,
+      "sha256": "baed27f5fa1bfe14ba8895708f0ee30ee074918e6cd788fdf75f2a26905c104b"
+    },
+    {
+      "path": "source/experimental-residual/check-filter.py",
+      "bytes": 3121,
+      "sha256": "e3219a0e582f33fb4e0f83724a7dfea5d8b2957aa2997420db7f6e5824b95bf6"
+    },
+    {
+      "path": "source/experimental-residual/flownet.original.param",
+      "bytes": 26915,
+      "sha256": "ae9b08af43fba97e27aa2c40c04c35b1a75f637b2d2b01a941fa94361ab25cbd"
+    },
+    {
+      "path": "source/experimental-residual/fuse-residual-model.py",
+      "bytes": 2336,
+      "sha256": "83264fed0cdf1a7e23d74df127aa9cbd5548df8f64274a8e59734b2b8ca6eb4f"
+    },
+    {
+      "path": "source/experimental-residual/validation/abba.txt",
+      "bytes": 2152,
+      "sha256": "5f5fdd689ed98de6bdc5641310608c4e5e5f4cf4adb7e26bca6fd082d244d8a2"
+    },
+    {
+      "path": "source/experimental-residual/validation/comparison.json",
+      "bytes": 1662,
+      "sha256": "9c9da1acc0d9bffbb6bb61a39a64bf96fb369b67143ad4b65eb41bd12150fa87"
+    },
+    {
+      "path": "source/experimental-residual/validation/physical-720-result.json",
+      "bytes": 463,
+      "sha256": "b766e8994b571c7e7f210ed3b91d3634ebcf91f79c4e266af06cfcd72cab0c75"
+    },
+    {
+      "path": "source/experimental-residual/validation/physical-900-result.json",
+      "bytes": 468,
+      "sha256": "dcdf22e79fb95eb5f71e560dc49290bb8d6439a808f44942286e44c3d029eaf1"
+    },
+    {
+      "path": "source/experimental-residual/validation/quality-720-base.json",
+      "bytes": 2644,
+      "sha256": "d3e52ee2ac53e43ba9d7f5f376378874b18395af683cd9f0e6ff2d049dcbfc7d"
+    },
+    {
+      "path": "source/experimental-residual/validation/quality-720-fused.json",
+      "bytes": 2644,
+      "sha256": "d3e52ee2ac53e43ba9d7f5f376378874b18395af683cd9f0e6ff2d049dcbfc7d"
+    },
+    {
+      "path": "source/experimental-residual/validation/quality-900-base.json",
+      "bytes": 2644,
+      "sha256": "cd28d7e57c66fabae71a080e64d578a7c29bb3df325ab4d7ea5b57f40f95ee1c"
+    },
+    {
+      "path": "source/experimental-residual/validation/quality-900-fused.json",
+      "bytes": 2644,
+      "sha256": "cd28d7e57c66fabae71a080e64d578a7c29bb3df325ab4d7ea5b57f40f95ee1c"
+    },
+    {
+      "path": "source/history/package-manifest-0.3-original.json",
+      "bytes": 228583,
+      "sha256": "a9b17d56e92ffb3dc9a48de94183ec2aa56a946b5c35c076e00ced9e11467319"
+    },
+    {
+      "path": "source/history/README-0.3-original.md",
+      "bytes": 5514,
+      "sha256": "17d710ebd621b522a161173f3838ce300e6f073b0fd9979fc6c008b25d75daed"
+    },
+    {
+      "path": "source/history/README-0.3.3-exp.md",
+      "bytes": 1544,
+      "sha256": "ab091e349e58df79152bb23d7b964f31e2cf2c22c256a166718e7edd7a3f6e49"
+    },
+    {
+      "path": "source/history/ИЗМЕНЕНИЯ-0.3-exp.md",
+      "bytes": 2532,
+      "sha256": "5431fefe01790ecc8ebe9b7e9d4c842a1f79431b9095924c2b8dc6475d654da7"
+    },
+    {
+      "path": "source/history/ИСПЫТАНИЯ-0.3.1-exp.md",
+      "bytes": 3524,
+      "sha256": "58d30b4a92a14d3145beda2e15d8dc924d448760c91d9eb43f6700dca6ddb987"
+    },
+    {
+      "path": "source/history/ИСПЫТАНИЯ-0.3.3-exp.md",
+      "bytes": 2646,
+      "sha256": "e3e6ba86e23fe6c8cecf2c7113f6fae084dbde3573162281d07746ead9caa029"
+    },
+    {
+      "path": "source/history/ИСПЫТАНИЯ-CONCAT.md",
+      "bytes": 6624,
+      "sha256": "b919d411a4832c6b25f6e9c4cc0bb5f1b8d6e1eec99d5e9715c58818433a7d42"
+    },
+    {
       "path": "source/LumaPlayer.cs",
-      "bytes": 62607,
-      "sha256": "5dac476700c97d67fd9b2bceb33df6fee349b43166bba55296677b47c3588a18"
+      "bytes": 65650,
+      "sha256": "dd6f43162d5f6e47f7890578e01a9d58c6d8bb9d5fcf55921980cc874b1cb534"
     },
     {
       "path": "source/native-rife/build-native.ps1",
@@ -5221,14 +5342,19 @@
       "sha256": "d4c7e7b7693ed6c87e45377485375a308a42f2bad730764c94bd5eb8d4619bed"
     },
     {
+      "path": "source/native-rife/RIFE/fused_residual.h",
+      "bytes": 2975,
+      "sha256": "7b702d708e58b9090e8a109f73dec456ab090cf02801cd722f33eb3de39d0b22"
+    },
+    {
       "path": "source/native-rife/RIFE/plugin.cpp",
       "bytes": 31464,
       "sha256": "81bc3cb92cd60d00bf211d3780b87db6ad3f1ee3f422172938dcc3bb84cd6930"
     },
     {
       "path": "source/native-rife/RIFE/rife.cpp",
-      "bytes": 62137,
-      "sha256": "14c8c7d849045e33b3636f072fb833c72ec6e640ae98799d9eb4ec3e1cd9df14"
+      "bytes": 62247,
+      "sha256": "0f7ac555448ae5ff261d38d16ac944ed7956bfec51fa5b6e0937b7cd0b5c7b91"
     },
     {
       "path": "source/native-rife/RIFE/rife.h",
@@ -5341,14 +5467,19 @@
       "sha256": "1c7f79b9719e5eddac7440f40743eea2d72bd425258a40c764f6ce5bd7dceb1b"
     },
     {
+      "path": "source/native-rife-memory/RIFE/fused_residual.h",
+      "bytes": 2975,
+      "sha256": "7b702d708e58b9090e8a109f73dec456ab090cf02801cd722f33eb3de39d0b22"
+    },
+    {
       "path": "source/native-rife-memory/RIFE/plugin.cpp",
       "bytes": 31464,
       "sha256": "81bc3cb92cd60d00bf211d3780b87db6ad3f1ee3f422172938dcc3bb84cd6930"
     },
     {
       "path": "source/native-rife-memory/RIFE/rife.cpp",
-      "bytes": 66667,
-      "sha256": "bed135aedb32df7084fce2f5a932dd815568a9535654e4e0677dcd28de9ac87c"
+      "bytes": 66777,
+      "sha256": "3cc440554a4362ef8dd86bf08d1a2bed98d49ed3553b68e6d2a3b53e85412711"
     },
     {
       "path": "source/native-rife-memory/RIFE/rife.h",
@@ -5457,8 +5588,8 @@
     },
     {
       "path": "source/PreRenderSession.cs",
-      "bytes": 32802,
-      "sha256": "b39a010492abe7b77791a5f0c10cd5a4642a8ce49fcbe98602316de49fd75c3c"
+      "bytes": 32758,
+      "sha256": "a606aa6aba7932d97ccadcb4c62702b00f894c45154c2fe0d0a387b5966349af"
     },
     {
       "path": "source/RIFE-HD-VALIDATION.md",
@@ -5477,8 +5608,8 @@
     },
     {
       "path": "source/test-buffer-control.cs",
-      "bytes": 1405,
-      "sha256": "75104d8aac1e1f829c3c270a06d4e98051ae44357f81419e2e3a02b6f6009678"
+      "bytes": 1492,
+      "sha256": "d9fb0d06f82ffb6c4e0927810bedde82c74fcc573726c59f0a0b86763dd8953d"
     },
     {
       "path": "source/test-cache-ownership.cs",
@@ -5507,13 +5638,23 @@
     },
     {
       "path": "source/test-player-ui.cs",
-      "bytes": 9398,
-      "sha256": "073483ba956a72527894fbe02b19c63039983b87bf2e4f91d8647cfc09cb5d6c"
+      "bytes": 9893,
+      "sha256": "85d7ea70554e595cb6b32112cf513efddd784daa5521b629ba8465d8fd29d265"
     },
     {
       "path": "source/test-prerender.cs",
       "bytes": 2836,
       "sha256": "c5a1701f0736476255c20531336b7734718f0b7ec2721356179689c536364dc2"
+    },
+    {
+      "path": "source/test-rife-1020.py",
+      "bytes": 3384,
+      "sha256": "0daa4502fba35a48e27f8f763a1bb46fd4344780b215d2e0f011f15624855ef0"
+    },
+    {
+      "path": "source/test-rife-memory-1080-experiment.py",
+      "bytes": 3005,
+      "sha256": "d566c866c8b56d59c8733504f27f9533e49c532e7944fc98c84945a3dad2945e"
     },
     {
       "path": "source/test-rife-memory.py",
@@ -5532,8 +5673,73 @@
     },
     {
       "path": "source/test-throughput-selection.cs",
-      "bytes": 1099,
-      "sha256": "28d3294ae32aa040ed9d22f4da2495ba84db853d91da6bf0eda9b593d4999d4a"
+      "bytes": 2036,
+      "sha256": "d4e6f5e6cf53acde51a0d1b2ad3f788ca681533c46245d0d9b629f0c532c2d8e"
+    },
+    {
+      "path": "source/validation-1020/abba.txt",
+      "bytes": 1067,
+      "sha256": "abeb33684e6ad7b705c63a5fc6696d3c8f726da4eb6002c475f728fbfbeaae0e"
+    },
+    {
+      "path": "source/validation-1020/bench.cs",
+      "bytes": 1047,
+      "sha256": "fcec2d9703fc8ba1afc4b3a1f867ba9dbdf3ff9a3c497515416d394763a9a5ff"
+    },
+    {
+      "path": "source/validation-1020/buffer-control.txt",
+      "bytes": 93,
+      "sha256": "08bc37e59143c3b324cff4168f38f94abae7a19958ca6467574969d206a1f15f"
+    },
+    {
+      "path": "source/validation-1020/comparison.json",
+      "bytes": 1603,
+      "sha256": "513b6574d387e3e2633f1c34dedd4fd4e6f967be52c0a014855bc49fc8cf9a47"
+    },
+    {
+      "path": "source/validation-1020/gpu.csv",
+      "bytes": 6639,
+      "sha256": "af24202678942801478227d85b4db8bd832e76969b7452e7e9c581418f480828"
+    },
+    {
+      "path": "source/validation-1020/physical-1020-result.json",
+      "bytes": 489,
+      "sha256": "b55b3a03fbb7f5d53a747e28d235aba30b5c2218888e6b6136ba22d7baa8efbe"
+    },
+    {
+      "path": "source/validation-1020/physical-1020.log",
+      "bytes": 328729,
+      "sha256": "d4acd5e0f1e1858c37baaf930503766b736cca174a7863446d16384cbbed2609"
+    },
+    {
+      "path": "source/validation-1020/physical-console.txt",
+      "bytes": 2331,
+      "sha256": "07791534bd6fe0967d36c43393ba1bb03c02cefcab06136de68261179111fbfd"
+    },
+    {
+      "path": "source/validation-1020/physical-gpu.csv",
+      "bytes": 10347,
+      "sha256": "4d1c9e85b45f995b0665f3e78e22766f76ebf707c544d8392ecf37ca9b440d24"
+    },
+    {
+      "path": "source/validation-1020/physical.cs",
+      "bytes": 6001,
+      "sha256": "fbfbeca82a070c6f69969752f1eb337284820d2374b7f7ac057bb41f1061b5c8"
+    },
+    {
+      "path": "source/validation-1020/quality-fused.json",
+      "bytes": 2647,
+      "sha256": "f46f9c8cb9e1aae2dee614c8ece804d317f20f0c1ab53bc0051c1c76c0c38f7c"
+    },
+    {
+      "path": "source/validation-1020/quality-original.json",
+      "bytes": 2647,
+      "sha256": "f46f9c8cb9e1aae2dee614c8ece804d317f20f0c1ab53bc0051c1c76c0c38f7c"
+    },
+    {
+      "path": "source/validation-1020/ui-check.txt",
+      "bytes": 140,
+      "sha256": "78629d8263428b52452ebc9c6e58a9ede5e9f86320b715c88fa51e1e5c743a1a"
     },
     {
       "path": "source/validation-optimized/audio-flow.log",
@@ -5589,6 +5795,11 @@
       "path": "source/validation-optimized/test-throughput-selection.log",
       "bytes": 83,
       "sha256": "7f2d17589f33daac9cabd6bd41da57f181f19605859dc695018bb0d1d4702670"
+    },
+    {
+      "path": "ИСПЫТАНИЯ-0.3.3.5-exp.md",
+      "bytes": 8185,
+      "sha256": "3e7a1f4281488da8f4f0977ffceb2321d13e27eef8153bd533caa76992c2ed64"
     }
   ]
 }
