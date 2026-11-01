@@ -1,0 +1,1 @@
+PASS: HD selection, exact seek, overlay, source/cache audio IDs, false aid normalization, new-file reset, merged cache ranges/colors/clear

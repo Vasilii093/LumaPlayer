@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Diagnostics;
@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-[assembly: System.Reflection.AssemblyVersion("3.3.7.1")]
-[assembly: System.Reflection.AssemblyFileVersion("3.3.7.1")]
-[assembly: System.Reflection.AssemblyInformationalVersion("3.3.7.1 exp")]
+[assembly: System.Reflection.AssemblyVersion("1.0.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("1.0.1 stable")]
 
 namespace Luma {
     static class Program {
@@ -336,7 +336,7 @@ namespace Luma {
             quality.SelectedIndex=0; quality.SelectedIndexChanged += delegate { ApplyScreenFit(); };
             motion.SetBounds(220,88,220,30); StyleCombo(motion);
             motion.DropDownWidth=330;
-            motion.Items.AddRange(new object[]{"Плавность: исходная","60 FPS · RIFE 720p","60 FPS · RIFE 900p (кэш)","60 FPS · RIFE 1020p (exp, кэш)","60 FPS · RIFE 1080p (кэш)"});
+            motion.Items.AddRange(new object[]{"Плавность: исходная","60 FPS · RIFE 720p","90 FPS · RIFE 720p (кэш)","60 FPS · RIFE 900p (кэш)","72 FPS · RIFE 900p (кэш)","60 FPS · RIFE 1020p (exp, кэш)","60 FPS · RIFE 1080p (кэш)"});
             motion.SelectedIndex=1; motion.SelectedIndexChanged += delegate { ApplyFilters(); };
             controls.Controls.Add(quality); controls.Controls.Add(motion);
             protection.SetBounds(452,88,280,30); StyleCombo(protection); protection.DropDownWidth=330;
@@ -683,7 +683,17 @@ namespace Luma {
             }
             ApplyCachedSubtitle();
         }
-        int ProcessingHeight { get { return motion.SelectedIndex==2 ? 900 : motion.SelectedIndex==3 ? 1020 : motion.SelectedIndex==4 ? 1080 : 720; } }
+        int ProcessingHeight { get {
+            switch(motion.SelectedIndex) {
+                case 3: case 4: return 900;
+                case 5: return 1020;
+                case 6: return 1080;
+                default: return 720;
+            }
+        } }
+        int ProcessingFps { get {
+            return motion.SelectedIndex==2 ? 90 : motion.SelectedIndex==4 ? 72 : 60;
+        } }
         void ApplyFilters() {
             if(!ready || cache!=null) return;
             pipelineFailed=false;
@@ -762,7 +772,7 @@ namespace Luma {
             from=Math.Max(0,Math.Min(duration-0.1,from));
             // Cached rendering uses RIFE and NVENC, independent of live Optical Flow.
             if(motion.SelectedIndex==0) motion.SelectedIndex=1;
-            int fps=60;
+            int fps=ProcessingFps;
             PreRenderSession session;
             try { session=new PreRenderSession(root,currentFile,from,duration,fps,ProcessingHeight,
                 protection.SelectedIndex,false,selectedAudio,15,PreRenderSession.DefaultLimit,23,true,true); }
@@ -847,9 +857,9 @@ namespace Luma {
             if(cache!=null) { UpdateCacheStatus(); return; }
             if(playbackNotice.Length>0) {info.Text=playbackNotice;return;}
             if(pipelineFailed) { info.Text="GPU-фильтр не запущен · откройте диагностику"; return; }
-            if(motion.SelectedIndex>=2){info.Text="RIFE "+ProcessingHeight+"p · эксперимент · сейчас оригинал · нажмите «Подготовить кэш»";return;}
+            if(motion.SelectedIndex>=2){info.Text="RIFE "+ProcessingHeight+"p · "+ProcessingFps+" FPS · сейчас оригинал · нажмите «Подготовить кэш»";return;}
             string mode=motion.SelectedIndex==0 ? "Оригинал" : "RIFE 720p";
-            int target=60;
+            int target=ProcessingFps;
             info.Text=mode+(motion.SelectedIndex>0 ? " · цель "+target+" FPS" : "")+" · пропуски вывода "+dropped.ToString("0")+
                 (motion.SelectedIndex>0 ? (protection.SelectedIndex==2 ? " · без защиты" : protection.SelectedIndex==1 ? " · осторожный режим" : " · защита сцен") : "");
         }
@@ -939,8 +949,8 @@ namespace Luma {
             }
         }
         void ShowGpu() {
-            MessageBox.Show("Сборка 3.3.7.1 exp · кэш кадров всех режимов: 1024 МиБ · запас до 240 с\n"+
-                "RIFE "+ProcessingHeight+"p: генерация 60 FPS на GPU с последующим масштабированием под экран.\n\n"+
+            MessageBox.Show("Сборка 1.0.1 stable · кэш кадров всех режимов: 1024 МиБ · запас до 240 с\n"+
+                "RIFE "+ProcessingHeight+"p: генерация "+(ProcessingFps)+" FPS на GPU с последующим масштабированием под экран.\n\n"+
                 "720p/900p/1020p/1080p: объединены 32 цепочки RIFE (Mul/Add/LeakyReLU).\n"+
                 (ProcessingHeight==1020 ? "1020p exp: уменьшение разрешения с сохранением пропорций, затем масштабирование под экран.\n\n" : "\n")+
                 "Кэш до 10 ГБ; просмотренные части удаляются. Бирюзовые участки шкалы уже готовы: переход внутри них не перезапускает подготовку.\n\n"+

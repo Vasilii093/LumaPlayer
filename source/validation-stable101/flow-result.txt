@@ -1,0 +1,5 @@
+AUDIO cache 90 fps: aid=1, WASAPI, unmuted
+PASS actual player 720p90 container-fps=90
+AUDIO cache 72 fps: aid=1, WASAPI, unmuted
+PASS actual player 900p72 container-fps=72
+EXIT 0

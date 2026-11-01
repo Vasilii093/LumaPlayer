@@ -1,0 +1,22 @@
+STATE Непрерывная подготовка · модель остаётся в памяти
+READY 1 speed=1,10 ahead=15,0
+READY 2 speed=1,27 ahead=30,0
+PLAY 0,0 ahead=30,0 bytes=22602215
+READY 3 speed=1,09 ahead=33,1
+READY 4 speed=1,11 ahead=34,6
+PLAY 30,0 ahead=30,0 bytes=54900339
+READY 5 speed=1,17 ahead=36,7
+READY 6 speed=1,08 ahead=37,8
+PLAY 60,0 ahead=30,0 bytes=76419179
+READY 7 speed=1,14 ahead=39,6
+READY 8 speed=1,13 ahead=41,4
+PLAY 90,0 ahead=30,0 bytes=84166434
+READY 9 speed=1,08 ahead=42,5
+READY 10 speed=1,09 ahead=43,7
+PLAY 120,0 ahead=30,0 bytes=81787978
+READY 11 speed=1,07 ahead=44,6
+READY 12 speed=1,06 ahead=45,5
+STATE Подготовка завершена
+PLAY 150,0 ahead=30,0 bytes=79475774
+{"height":720,"seconds":180,"playback_wall_seconds":182.2912259,"final_position":180.010211,"chunks":12,"manifest_read_bytes":466,"cache_directory_scans":160,"encoder_starts":1,"playback_starts":1,"cache_stalls":0,"min_ahead_seconds":18.122210999999915,"completed":true,"rendered_seconds":180.010211,"render_active_seconds":161.76968439999996,"render_speed":1.1127561487657822,"output_drops":1,"mistimed_frames":null,"display_sync":false,"estimated_display_fps":null,"error":null}
+PASS: continuous 720p cache playback with no starvation, above 1x

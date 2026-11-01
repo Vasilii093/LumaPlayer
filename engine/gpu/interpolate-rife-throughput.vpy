@@ -25,8 +25,8 @@ if gpu_threads not in (1, 2, 3, 4):
     raise ValueError("Invalid GPU concurrency")
 if model not in (23, 70, 71):
     raise ValueError("Unsupported bundled RIFE model")
-if target_fps not in (60, 120):
-    raise ValueError("Luma: target FPS must be 60 or 120")
+if target_fps not in (60, 72, 90, 120):
+    raise ValueError("Luma: target FPS must be 60, 72, 90 or 120")
 
 clip = video_in
 rate = Fraction(float(container_fps)).limit_denominator(100000)
