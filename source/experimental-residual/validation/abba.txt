@@ -1,0 +1,48 @@
+BEGIN 720 Base1 2026-10-29T18:49:34.2295901+03:00
+segment speed=1,25941620373185
+segment speed=1,57807851161526
+segment speed=1,58458324731687
+segment speed=1,5554777805165
+completed=True chunks=4 video_seconds=60,0047 active_seconds=40,5313 speed=1,4805 error=
+BEGIN 720 Fused1 2026-10-29T18:50:15.0410664+03:00
+segment speed=1,23805195290186
+segment speed=1,60675429804632
+segment speed=1,61284394945571
+segment speed=1,55215705345231
+completed=True chunks=4 video_seconds=60,0047 active_seconds=40,4222 speed=1,4844 error=
+BEGIN 720 Fused2 2026-10-29T18:50:55.5731099+03:00
+segment speed=1,42969882431032
+segment speed=1,63074148608624
+segment speed=1,61070521936141
+segment speed=1,57918482026489
+completed=True chunks=4 video_seconds=60,0047 active_seconds=38,5056 speed=1,5583 error=
+BEGIN 720 Base2 2026-10-29T18:51:34.2319566+03:00
+segment speed=1,41752951118058
+segment speed=1,59065590187104
+segment speed=1,58187663762461
+segment speed=1,5549765139229
+completed=True chunks=4 video_seconds=60,0047 active_seconds=39,1451 speed=1,5329 error=
+BEGIN 900 Base1 2026-10-29T18:52:13.5413582+03:00
+segment speed=1,27979635288362
+segment speed=1,57042179644946
+segment speed=1,58919284450454
+segment speed=1,55703016755341
+completed=True chunks=4 video_seconds=60,0047 active_seconds=40,3506 speed=1,4871 error=
+BEGIN 900 Fused1 2026-10-29T18:52:54.1679819+03:00
+segment speed=1,33441237028011
+segment speed=1,57306554388379
+segment speed=1,59980602671887
+segment speed=1,54630089066927
+completed=True chunks=4 video_seconds=60,0047 active_seconds=39,8583 speed=1,5054 error=
+BEGIN 900 Fused2 2026-10-29T18:53:34.1317443+03:00
+segment speed=1,31176980388572
+segment speed=1,60579207058805
+segment speed=1,6144093308382
+segment speed=1,55141354044341
+completed=True chunks=4 video_seconds=60,0047 active_seconds=39,7416 speed=1,5099 error=
+BEGIN 900 Base2 2026-10-29T18:54:14.0031558+03:00
+segment speed=1,28091406170456
+segment speed=1,54840571760166
+segment speed=1,57413165231185
+segment speed=1,5157972640707
+completed=True chunks=4 video_seconds=60,0047 active_seconds=40,8283 speed=1,4697 error=

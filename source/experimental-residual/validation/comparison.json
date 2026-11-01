@@ -1,0 +1,76 @@
+{
+  "runs": [
+    {
+      "mode": 720,
+      "variant": "Base1",
+      "video_seconds": 60.0047,
+      "active_seconds": 40.5313,
+      "speed": 1.4805
+    },
+    {
+      "mode": 720,
+      "variant": "Fused1",
+      "video_seconds": 60.0047,
+      "active_seconds": 40.4222,
+      "speed": 1.4844
+    },
+    {
+      "mode": 720,
+      "variant": "Fused2",
+      "video_seconds": 60.0047,
+      "active_seconds": 38.5056,
+      "speed": 1.5583
+    },
+    {
+      "mode": 720,
+      "variant": "Base2",
+      "video_seconds": 60.0047,
+      "active_seconds": 39.1451,
+      "speed": 1.5329
+    },
+    {
+      "mode": 900,
+      "variant": "Base1",
+      "video_seconds": 60.0047,
+      "active_seconds": 40.3506,
+      "speed": 1.4871
+    },
+    {
+      "mode": 900,
+      "variant": "Fused1",
+      "video_seconds": 60.0047,
+      "active_seconds": 39.8583,
+      "speed": 1.5054
+    },
+    {
+      "mode": 900,
+      "variant": "Fused2",
+      "video_seconds": 60.0047,
+      "active_seconds": 39.7416,
+      "speed": 1.5099
+    },
+    {
+      "mode": 900,
+      "variant": "Base2",
+      "video_seconds": 60.0047,
+      "active_seconds": 40.8283,
+      "speed": 1.4697
+    }
+  ],
+  "summary": [
+    {
+      "mode": 720,
+      "baseline": 1.5062101199351376,
+      "fused": 1.5204959469287123,
+      "gain_percent": 0.9484617587212751,
+      "encoded_first_segment_identical": true
+    },
+    {
+      "mode": 900,
+      "baseline": 1.4783324238194901,
+      "fused": 1.5076576729367752,
+      "gain_percent": 1.9836708337573228,
+      "encoded_first_segment_identical": true
+    }
+  ]
+}

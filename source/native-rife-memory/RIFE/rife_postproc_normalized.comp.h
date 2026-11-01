@@ -37,7 +37,7 @@ int gz = int(gl_GlobalInvocationID.z);
 if (gx >= p.outw || gy >= p.outh || gz >= 3)
 return;
 
-float v = float(bottom_blob_data[gz * p.cstep + gy * p.w + gx]);
+precise float v = float(bottom_blob_data[gz * p.cstep + gy * p.w + gx]);
 
 const float denorm_val = 255.f;
 const float clip_eps = 0.5f;
@@ -56,7 +56,7 @@ top_blob_data[v_offset * 3 + 2 - gz] = uint8_t(v32);
 #else
 int v_offset = gz * p.outcstep + gy * p.outw + gx;
 
-top_blob_data[v_offset] = v * (1 / 255.f);
+precise float result = v * uintBitsToFloat(0x3b808081u); top_blob_data[v_offset] = result;
 #endif
 }
 )SHADER";

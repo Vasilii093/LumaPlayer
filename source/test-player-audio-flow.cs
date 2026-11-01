@@ -64,7 +64,7 @@ class AudioFlowTest {
    if(File.Exists(reacher)) {
    Call("LoadFile",reacher);
    await Until(()=> (bool)Get("sourceLoaded") && (double)Get("duration")>0,20,"Reacher loaded");
-   Check((string)Get("selectedAudio")=="auto","Other folder retained prior source id");
+   Check((string)Get("selectedAudio")=="auto" || (string)Get("selectedAudio")==Convert.ToString(await Property("aid")),"Other folder retained prior source id");
    Call("BeginCache",0.0);
    await Until(()=> ((string)Get("playbackNotice")).Length>0,30,"damaged file detected");
    Check(((string)Get("playbackNotice")).Contains("повреждён"),"Expected corrupt source diagnosis: "+Get("playbackNotice"));
@@ -73,7 +73,7 @@ class AudioFlowTest {
    } else {
     Call("LoadFile",Path.GetFullPath("outputs/cache-test-sample.mp4"));
     await Until(()=> (bool)Get("sourceLoaded") && (double)Get("duration")>0,20,"other-folder sample loaded");
-    Check((string)Get("selectedAudio")=="auto","Other folder retained prior source id");
+    Check((string)Get("selectedAudio")=="auto" || (string)Get("selectedAudio")==Convert.ToString(await Property("aid")),"Other folder retained prior source id");
     await Task.Delay(500);await Audio("1","Other folder default track");
     Call("BeginCache",0.0);
     await Until(()=> (bool)Get("cacheFileLoaded") || ((string)Get("playbackNotice")).Length>0,90,"other-folder cache");

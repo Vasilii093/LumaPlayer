@@ -75,7 +75,7 @@ if float(rate) < target_fps:
     rgb = core.rifebatch.RIFE(
         rgb, batch=2, model=23 if model == 71 else model, fps_num=target_fps, fps_den=1,
         gpu_thread=gpu_threads, tta=False, uhd=True, sc=(protection != 2 or model in (23, 71)),
-        model_path=os.path.join(here, "models", "rife-v4.6-luma-hybrid" if model == 71 else "rife-v4.25-lite_ensembleFalse" if model == 70 else "rife-v4.6_ensembleFalse"),
+        model_path=os.path.join(here, "models", "rife-v4.6-luma-hybrid" if model == 71 else "rife-v4.25-lite_ensembleFalse" if model == 70 else "rife-v4.6_ensembleFalse_residual" if processing_height == 900 else "rife-v4.6_ensembleFalse"),
     )
     if model == 71:
         rgb = core.std.CropAbs(rgb, original_width, original_height)

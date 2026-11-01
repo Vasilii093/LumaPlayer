@@ -60,6 +60,8 @@ private:
     ncnn::Net fusionnet;
     ncnn::Pipeline* rife_preproc;
     ncnn::Pipeline* rife_postproc;
+    ncnn::Pipeline* unitOutput=nullptr;
+    bool directOut=false,directIn=false;
     ncnn::Pipeline* rife_flow_tta_avg;
     ncnn::Pipeline* rife_flow_tta_temporal_avg;
     ncnn::Pipeline* rife_out_tta_temporal_avg;

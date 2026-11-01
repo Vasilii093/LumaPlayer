@@ -30,7 +30,7 @@ namespace Luma {
 #endif
         public static bool Fast900(int model,int height){return NativeRife && RifeThroughput && model==23 && height==900;}
         public static string RifeScript(int model, int height) {
-            if(model!=23 || (height!=720 && height!=900 && height!=1080)) throw new ArgumentException("Unsupported RIFE profile");
+            if(model!=23 || (height!=720 && height!=900 && height!=1020 && height!=1080)) throw new ArgumentException("Unsupported RIFE profile");
             if(Fast900(model,height))return "interpolate-rife-throughput.vpy";
             return "interpolate-rife-resident.vpy";
         }
@@ -65,7 +65,7 @@ namespace Luma {
         public void UpdatePlaybackBuffer(double seconds, bool playbackStarted) {
             if(Double.IsNaN(seconds) || Double.IsInfinity(seconds)) return;
             lock(gate) {
-                if(!playbackStarted || model!=23 || (height!=720 && height!=900 && height!=1080)) bufferSatisfied=false;
+                if(!playbackStarted || model!=23 || (height!=720 && height!=900 && height!=1020 && height!=1080)) bufferSatisfied=false;
                 else bufferSatisfied=seconds>=240;
             }
         }

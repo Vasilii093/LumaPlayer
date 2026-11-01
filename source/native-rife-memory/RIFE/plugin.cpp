@@ -51,7 +51,11 @@ struct PairFrames {
     ~PairFrames(){for(auto& item:frames)api->freeFrame(item.second);}
 };
 
+#include <atomic>
+#include <cstdio>
 struct RIFEData final {
+    bool traceCounts=std::getenv("LUMA_IO_COUNTS")!=nullptr;
+    mutable std::atomic<unsigned long long> original{0},generated{0},repeated{0};
     int batch=0;
     mutable std::mutex cacheMutex;
     mutable std::map<int,std::shared_ptr<PairFrames>> pairs;
@@ -175,8 +179,10 @@ static const VSFrame* VS_CC rifeGetFrame(int n, int activationReason, void* inst
             }
 
             if (sceneChange || psnrY >= d->skipThreshold) {
+                if(d->traceCounts)++d->repeated;
                 dst = vsapi->copyFrame(src0, core);
             } else {
+                if(d->traceCounts)++d->generated;
                 src1 = vsapi->getFrameFilter(frameNum + 1, d->node, frameCtx);
                 if(d->batch==1) {
                     try {dst=batchFrame(n,frameNum,src0,src1,d,core,vsapi);}
@@ -192,6 +198,7 @@ static const VSFrame* VS_CC rifeGetFrame(int n, int activationReason, void* inst
                 }
             }
         } else {
+            if(d->traceCounts){if(remainder)++d->repeated;else ++d->original;}
             dst = vsapi->copyFrame(src0, core);
         }
 
@@ -218,6 +225,7 @@ static void VS_CC rifeFree(void* instanceData, [[maybe_unused]] VSCore* core, co
     auto d{ static_cast<RIFEData*>(instanceData) };
     vsapi->freeNode(d->node);
     vsapi->freeNode(d->psnr);
+    if(d->traceCounts)if(auto path=std::getenv("LUMA_IO_COUNTS"))if(FILE* f=std::fopen(path,"a")){std::fprintf(f,"%llu,%llu,%llu\n",d->original.load(),d->generated.load(),d->repeated.load());std::fclose(f);}
     d->pairs.clear();
     delete d;
 

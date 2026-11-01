@@ -6,16 +6,23 @@ import vapoursynth as vs
 
 core = vs.core
 core.num_threads = 4
-core.max_cache_size = 256
+core.max_cache_size = 1024
 here = os.path.dirname(os.path.abspath(__file__))
 # mpv passes fps|processing-height|protection. 0 keeps source resolution.
 settings = str(user_data).split("|")
 target_fps = int(settings[0])
 processing_height = int(settings[1]) if len(settings) > 1 else 0
+# File controls the 1080p experimental preset in the prerender process.
 if processing_height == 1080:
-    core.max_cache_size = 1024
-# Experimental 1080p only: direct staging to remove redundant host copies.
-if processing_height == 1080:
+    profile_path = os.path.join(here, "io1080.profile")
+    with open(profile_path, encoding="ascii") as profile:
+        preset = profile.read().strip()
+    for letter, option in (("O", "OUTPUT"), ("N", "UNIT"), ("I", "INPUT")):
+        if letter in preset:
+            os.environ["LUMA_IO_" + option] = "1"
+
+# High-resolution profiles share direct staging to remove redundant host copies.
+if processing_height in (1020, 1080):
     os.environ["LUMA_RIFE_MEMORY"] = "1"
     native_dir = os.path.join(here, "rife-memory")
 else:
@@ -80,7 +87,7 @@ if float(rate) < target_fps:
     rgb = core.rifebatch.RIFE(
         rgb, batch=2, model=23 if model == 71 else model, fps_num=target_fps, fps_den=1,
         gpu_thread=gpu_threads, tta=False, uhd=True, sc=(protection != 2 or model in (23, 71)),
-        model_path=os.path.join(here, "models", "rife-v4.6-luma-hybrid" if model == 71 else "rife-v4.25-lite_ensembleFalse" if model == 70 else "rife-v4.6_ensembleFalse"),
+        model_path=os.path.join(here, "models", "rife-v4.6-luma-hybrid" if model == 71 else "rife-v4.25-lite_ensembleFalse" if model == 70 else "rife-v4.6_ensembleFalse_residual" if processing_height in (720, 900, 1020, 1080) else "rife-v4.6_ensembleFalse"),
     )
     if model == 71:
         rgb = core.std.CropAbs(rgb, original_width, original_height)

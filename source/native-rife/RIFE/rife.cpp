@@ -1,3 +1,4 @@
+#include "fused_residual.h"
 // rife implemented with ncnn library
 
 #include "rife.h"
@@ -154,6 +155,7 @@ int RIFE::load(const std::string& modeldir)
     fusionnet.set_vulkan_device(vkdev);
 
     flownet.register_custom_layer("rife.Warp", Warp_layer_creator);
+    flownet.register_custom_layer("luma.Residual", LumaResidual_layer_creator);
     contextnet.register_custom_layer("rife.Warp", Warp_layer_creator);
     fusionnet.register_custom_layer("rife.Warp", Warp_layer_creator);
 

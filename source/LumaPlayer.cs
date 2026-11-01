@@ -11,6 +11,10 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
+[assembly: System.Reflection.AssemblyVersion("3.3.7.1")]
+[assembly: System.Reflection.AssemblyFileVersion("3.3.7.1")]
+[assembly: System.Reflection.AssemblyInformationalVersion("3.3.7.1 exp")]
+
 namespace Luma {
     static class Program {
         [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
@@ -234,7 +238,11 @@ namespace Luma {
         [DllImport("user32.dll", EntryPoint="SetWindowLongW")] static extern int SetWindowStyle(IntPtr window,int index,int value);
         [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window,IntPtr after,int x,int y,int cx,int cy,uint flags);
         readonly List<Dictionary<string,object>> audioTracks=new List<Dictionary<string,object>>();
-        int audioTracksRequest;
+        int audioTracksRequest, subtitleTracksRequest;
+        readonly List<Dictionary<string,object>> subtitleTracks=new List<Dictionary<string,object>>();
+        readonly Dictionary<string,string> cachedSubtitleIds=new Dictionary<string,string>();
+        string selectedSubtitle="auto";
+        bool cachedSubtitlesLoading, cachedSubtitlesLoaded;
         bool sourceLoaded;
         string playbackNotice="";
         ComboBox quality = new RoundedComboBox(), motion = new RoundedComboBox(), protection = new RoundedComboBox();
@@ -281,6 +289,7 @@ namespace Luma {
         public Player(string file) {
             startupFile = file;
             Text = "Luma Player";
+            Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             BackColor = bg; ForeColor = Color.White;
             Font = new Font("Segoe UI", 10);
             Size = new Size(1440,800); MinimumSize = new Size(1100,600);
@@ -316,7 +325,7 @@ namespace Luma {
             time.SetBounds(335,48,185,25); time.Text = "00:00 / 00:00"; time.ForeColor = muted;
             controls.Controls.Add(time);
             audioButton=Button("Аудио",540,42,76,ShowAudioTracks);
-            subButton=Button("Субтитры",624,42,96, delegate { Send("cycle","sub"); Send("show-text","Субтитры: ${current-tracks/sub/title} ${current-tracks/sub/lang}",2500); });
+            subButton=Button("Субтитры",624,42,96,ShowSubtitleTracks);
             Button("⛶",728,42,45, delegate { Fullscreen(); });
             volume.AutoSize=false; volume.SetBounds(785,44,130,30); volume.Minimum=0; volume.Maximum=100; volume.Value=70;
             volume.TickStyle=TickStyle.None; volume.BackColor=bg;
@@ -327,7 +336,7 @@ namespace Luma {
             quality.SelectedIndex=0; quality.SelectedIndexChanged += delegate { ApplyScreenFit(); };
             motion.SetBounds(220,88,220,30); StyleCombo(motion);
             motion.DropDownWidth=330;
-            motion.Items.AddRange(new object[]{"Плавность: исходная","60 FPS · RIFE 720p","60 FPS · RIFE 900p (кэш)","60 FPS · RIFE 1080p (кэш)"});
+            motion.Items.AddRange(new object[]{"Плавность: исходная","60 FPS · RIFE 720p","60 FPS · RIFE 900p (кэш)","60 FPS · RIFE 1020p (exp, кэш)","60 FPS · RIFE 1080p (кэш)"});
             motion.SelectedIndex=1; motion.SelectedIndexChanged += delegate { ApplyFilters(); };
             controls.Controls.Add(quality); controls.Controls.Add(motion);
             protection.SetBounds(452,88,280,30); StyleCombo(protection); protection.DropDownWidth=330;
@@ -445,10 +454,15 @@ namespace Luma {
                                     UI(delegate { if(cache==null && id==audioTracksRequest) UpdateAudioTracks(tracks); });
                                     continue;
                                 }
+                                if(id==subtitleTracksRequest) {
+                                    object tracks=obj.ContainsKey("data") ? obj["data"] : null;
+                                    UI(delegate { if(cache!=null && cacheFileLoaded && id==subtitleTracksRequest) UpdateCachedSubtitleTracks(tracks); });
+                                    continue;
+                                }
                                 if(id==videoParamsRequest) {
                                     var parameters=obj.ContainsKey("data") ? obj["data"] as Dictionary<string,object> : null;
                                     UI(delegate {
-                                        if(parameters!=null) ApplyFilters();
+                                        if(cache==null && id==videoParamsRequest && parameters!=null) ApplyFilters();
                                     });
                                     continue;
                                 }
@@ -465,7 +479,19 @@ namespace Luma {
                                     UI(delegate { pipelineFailed=true; UpdateStatus(); });
                                 }
                             }
-                            if(ev=="file-loaded") UI(delegate { empty.Visible=false; if(cache!=null) { cacheFileLoaded=cacheStarted; } else { sourceLoaded=true; ReadSourceParams(); } });
+                            if(ev=="file-loaded") UI(delegate {
+                                empty.Visible=false;
+                                if(cache!=null) { cacheFileLoaded=cacheStarted; ApplyCachedSubtitle(); }
+                                else {
+                                    sourceLoaded=true;
+                                    // mpv can match the previous file's track layout on reload,
+                                    // overriding loadfile aid/sid (cache and source IDs differ).
+                                    // Restore explicit source choices after tracks are available.
+                                    if(selectedAudio!="auto")Send("set_property","aid",selectedAudio);
+                                    if(selectedSubtitle!="auto")Send("set_property","sid",selectedSubtitle);
+                                    ReadSourceParams();
+                                }
+                            });
                             if(ev=="end-file" && obj.ContainsKey("reason") && Convert.ToString(obj["reason"])=="eof")
                                 UI(delegate { if(cache!=null) CacheEnded(); });
                             if(ev=="end-file" && obj.ContainsKey("reason") && Convert.ToString(obj["reason"])=="error")
@@ -525,45 +551,139 @@ namespace Luma {
             if(!File.Exists(path)) { MessageBox.Show("Файл не найден: "+path,"Luma"); return; }
             if(!ready) { startupFile=path; return; }
             CancelCache(); currentFile=path; duration=0; position=0; seek.Value=0;
-            selectedAudio="auto"; sourceLoaded=false; audioTracksRequest=0; audioTracks.Clear(); playbackNotice="";
+            selectedAudio="auto"; selectedSubtitle="auto"; sourceLoaded=false; audioTracksRequest=videoParamsRequest=0; audioTracks.Clear(); subtitleTracks.Clear(); playbackNotice="";
             Text=Path.GetFileName(path)+" — Luma Player";
             Send("set_property","vf","");
-            Send("loadfile",path,"replace",-1,new Dictionary<string,string>{{"aid","auto"}});
+            Send("loadfile",path,"replace",-1,new Dictionary<string,string>{{"aid","auto"},{"sid","auto"},{"sub-delay","0"}});
             Send("set_property","pause",false);
         }
+        static string TrackValue(Dictionary<string,object> track,string key) {
+            object value; return track.TryGetValue(key,out value) ? Convert.ToString(value) : "";
+        }
+        static bool TrackSelected(Dictionary<string,object> track) { return TrackValue(track,"selected")=="True"; }
+        static string TrackTitle(Dictionary<string,object> track) {
+            string title=TrackValue(track,"title"),id=TrackValue(track,"id"),lang=TrackValue(track,"lang"),codec=TrackValue(track,"codec");
+            if(String.IsNullOrWhiteSpace(title))title="Дорожка "+id;
+            string channels=TrackValue(track,"demux-channel-count");
+            return id+". "+title+(lang.Length>0 ? " · "+lang : "")+(codec.Length>0 ? " · "+codec : "")+(channels.Length>0 ? " · "+channels+" кан." : "");
+        }
         void UpdateAudioTracks(object data) {
-            audioTracks.Clear();
+            audioTracks.Clear(); subtitleTracks.Clear();
             var tracks=data as System.Collections.IEnumerable;
             if(tracks==null)return;
             foreach(object item in tracks) {
                 var track=item as Dictionary<string,object>;
-                if(track!=null && track.ContainsKey("type") && Convert.ToString(track["type"])=="audio" && track.ContainsKey("id")) audioTracks.Add(track);
+                if(track==null || !track.ContainsKey("id"))continue;
+                string type=TrackValue(track,"type");
+                if(type=="audio")audioTracks.Add(track);
+                if(type=="sub")subtitleTracks.Add(track);
+            }
+            // Capture mpv's actual automatic choices before switching to the cache,
+            // whose audio and subtitle IDs belong to another file.
+            if(selectedAudio=="auto")foreach(var track in audioTracks)if(TrackSelected(track))selectedAudio=TrackValue(track,"id");
+            if(selectedSubtitle=="auto") {
+                selectedSubtitle="no";
+                foreach(var track in subtitleTracks)if(TrackSelected(track))selectedSubtitle=TrackValue(track,"id");
             }
         }
-        void ShowAudioTracks() {
-            if(cache!=null || !sourceLoaded)return;
-            var menu=new ContextMenuStrip {BackColor=bg,ForeColor=Color.White,ShowImageMargin=false};
-            if(audioTracks.Count==0) menu.Items.Add(new ToolStripMenuItem("В файле нет аудиодорожек") {Enabled=false});
-            foreach(var track in audioTracks) {
-                string id=PreRenderSession.NormalizeAudioTrack(track["id"]);
-                string title=track.ContainsKey("title") ? Convert.ToString(track["title"]) : "Дорожка "+id;
-                string lang=track.ContainsKey("lang") ? Convert.ToString(track["lang"]) : "";
-                var item=new ToolStripMenuItem(title+(lang.Length>0 ? " · "+lang : ""));
-                item.Checked=selectedAudio==id || (selectedAudio=="auto" && track.ContainsKey("selected") && Convert.ToBoolean(track["selected"]));
-                item.Click+=delegate { SelectAudioTrack(id); };
-                menu.Items.Add(item);
+        ContextMenuStrip CreateTrackMenu(bool subtitles) {
+            var menu=new ContextMenuStrip {BackColor=bg,ForeColor=Color.White,ShowImageMargin=false,ShowCheckMargin=true,Font=Font};
+            var tracks=subtitles ? subtitleTracks : audioTracks;
+            string selected=subtitles ? selectedSubtitle : selectedAudio;
+            bool available=cache!=null || sourceLoaded;
+            if(!available)menu.Items.Add(new ToolStripMenuItem(currentFile==null ? "Сначала откройте файл" : "Чтение дорожек…") {Enabled=false});
+            else {
+                if(subtitles) {
+                    var off=new ToolStripMenuItem("Выключены") {Checked=selected=="no"};
+                    off.Click+=delegate {SelectSubtitleTrack("no");};menu.Items.Add(off);
+                    if(tracks.Count>0)menu.Items.Add(new ToolStripSeparator());
+                }
+                if(tracks.Count==0)menu.Items.Add(new ToolStripMenuItem(subtitles ? "В файле нет субтитров" : "В файле нет аудиодорожек") {Enabled=false});
+                foreach(var track in tracks) {
+                    string id=TrackValue(track,"id");
+                    var item=new ToolStripMenuItem(TrackTitle(track)) {Checked=selected==id || (selected=="auto" && TrackSelected(track))};
+                    item.Click+=delegate {if(subtitles)SelectSubtitleTrack(id);else SelectAudioTrack(id);};menu.Items.Add(item);
+                }
+                if(!subtitles && cache!=null && tracks.Count>1) {
+                    menu.Items.Add(new ToolStripSeparator());
+                    menu.Items.Add(new ToolStripMenuItem("Смена дорожки: подготовка с текущего места") {Enabled=false});
+                }
             }
+            return menu;
+        }
+        void ShowTrackMenu(bool subtitles) {
+            var menu=CreateTrackMenu(subtitles);
             dialogOpen=true; ShowChrome();
             menu.Closed+=delegate {dialogOpen=false; ShowChrome(); UI(delegate {menu.Dispose();});};
-            menu.Show(audioButton,new Point(0,audioButton.Height));
+            var button=subtitles ? subButton : audioButton;
+            menu.Show(button,new Point(0,0),ToolStripDropDownDirection.AboveRight);
         }
+        void ShowAudioTracks() {ShowTrackMenu(false);}
+        void ShowSubtitleTracks() {ShowTrackMenu(true);}
         void SelectAudioTrack(string id) {
-            if(cache!=null || !sourceLoaded)return;
+            if(cache==null && !sourceLoaded)return;
             id=PreRenderSession.NormalizeAudioTrack(id);
-            if(id=="no")id="auto";
-            selectedAudio=id; Send("set_property","aid",id); Send("set_property","mute",false);
+            if(!audioTracks.Exists(delegate(Dictionary<string,object> t){return TrackValue(t,"id")==id;}))return;
+            if(selectedAudio==id)return;
+            selectedAudio=id;
+            Send("set_property","mute",false);
+            if(cache!=null)BeginCache(position);
+            else Send("set_property","aid",id);
         }
-        int ProcessingHeight { get { return motion.SelectedIndex==2 ? 900 : motion.SelectedIndex==3 ? 1080 : 720; } }
+        void SelectSubtitleTrack(string id) {
+            if(cache==null && !sourceLoaded)return;
+            if(id!="no" && !subtitleTracks.Exists(delegate(Dictionary<string,object> t){return TrackValue(t,"id")==id;}))return;
+            selectedSubtitle=id;
+            if(cache!=null)ApplyCachedSubtitle();
+            else {Send("set_property","sid",id);Send("set_property","sub-visibility",true);}
+        }
+        void ResetCachedSubtitles() {
+            subtitleTracksRequest=0;cachedSubtitlesLoading=false;cachedSubtitlesLoaded=false;cachedSubtitleIds.Clear();
+        }
+        void ApplyCachedSubtitle() {
+            if(!cacheFileLoaded)return;
+            Send("set_property","sub-delay",-cacheOrigin);
+            Send("set_property","sub-visibility",true);
+            if(selectedSubtitle=="no" || subtitleTracks.Count==0) {Send("set_property","sid","no");return;}
+            if(cachedSubtitlesLoading)return;
+            if(!cachedSubtitlesLoaded) {
+                cachedSubtitlesLoading=true;
+                // mpv can read embedded subtitles directly, including bitmap/ASS
+                // tracks. No burned-in text, transcoding or temporary extraction.
+                var files=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach(var track in subtitleTracks) {
+                    string file=TrackValue(track,"external-filename");
+                    if(file.Length==0)file=currentFile;
+                    if(files.Add(file))Send("sub-add",file,"auto");
+                }
+                lock(sendLock) {
+                    if(writer==null){cachedSubtitlesLoading=false;return;}
+                    subtitleTracksRequest=++requestId;
+                    try {writer.WriteLine(new JavaScriptSerializer().Serialize(new {command=new object[]{"get_property","track-list"},request_id=subtitleTracksRequest}));}
+                    catch(IOException){cachedSubtitlesLoading=false;}catch(ObjectDisposedException){cachedSubtitlesLoading=false;}
+                }
+                return;
+            }
+            string sid;
+            if(cachedSubtitleIds.TryGetValue(selectedSubtitle,out sid))Send("set_property","sid",sid);
+            else {Send("set_property","sid","no");info.Text="Не удалось подключить выбранные субтитры · см. logs/mpv.log";}
+        }
+        void UpdateCachedSubtitleTracks(object data) {
+            cachedSubtitleIds.Clear();cachedSubtitlesLoading=false;cachedSubtitlesLoaded=true;
+            var tracks=data as System.Collections.IEnumerable;
+            if(tracks!=null)foreach(object item in tracks) {
+                var target=item as Dictionary<string,object>;
+                if(target==null || TrackValue(target,"type")!="sub")continue;
+                foreach(var source in subtitleTracks) {
+                    string file=TrackValue(source,"external-filename");if(file.Length==0)file=currentFile;
+                    if(String.Equals(file,TrackValue(target,"external-filename"),StringComparison.OrdinalIgnoreCase)
+                        && TrackValue(source,"ff-index")==TrackValue(target,"ff-index"))
+                        cachedSubtitleIds[TrackValue(source,"id")]=TrackValue(target,"id");
+                }
+            }
+            ApplyCachedSubtitle();
+        }
+        int ProcessingHeight { get { return motion.SelectedIndex==2 ? 900 : motion.SelectedIndex==3 ? 1020 : motion.SelectedIndex==4 ? 1080 : 720; } }
         void ApplyFilters() {
             if(!ready || cache!=null) return;
             pipelineFailed=false;
@@ -581,9 +701,10 @@ namespace Luma {
         }
         void SetCacheControls(bool enabled) {
             motion.Enabled=protection.Enabled=buffer.Enabled=enabled;
-            audioButton.Enabled=subButton.Enabled=enabled;
+            audioButton.Enabled=subButton.Enabled=true;
         }
         void CancelCache() {
+            ResetCachedSubtitles(); audioTracksRequest=videoParamsRequest=0;
             var old=cache; cache=null;
             if(cacheStream!=null){cacheStream.Dispose();cacheStream=null;}
             if(old!=null) { Send("stop"); old.Dispose(); }
@@ -598,7 +719,7 @@ namespace Luma {
             CancelCache();
             sourceLoaded=false;
             Send("set_property","vf","");
-            Send("loadfile",currentFile,"replace",-1,new Dictionary<string,string>{{"aid",selectedAudio},{"start",resume.ToString("0.######",System.Globalization.CultureInfo.InvariantCulture)}});
+            Send("loadfile",currentFile,"replace",-1,new Dictionary<string,string>{{"aid",selectedAudio},{"sid",selectedSubtitle},{"sub-delay","0"},{"start",resume.ToString("0.######",System.Globalization.CultureInfo.InvariantCulture)}});
             Send("set_property","pause",false);
         }
         void SeekTo(double target) {
@@ -630,7 +751,8 @@ namespace Luma {
             UpdateCacheStatus();return true;
         }
         void LoadCacheStream(double offset) {
-            Send("loadfile",cacheStream.Url,"replace",-1,new Dictionary<string,string>{{"aid","auto"},{"demuxer","lavf"},{"demuxer-lavf-format","mpegts"},{"cache","yes"},{"cache-secs","5"},{"demuxer-max-bytes","32MiB"},{"demuxer-max-back-bytes","0"},{"force-seekable","yes"},{"hr-seek","yes"},{"start",offset.ToString("0.######",System.Globalization.CultureInfo.InvariantCulture)}});
+            ResetCachedSubtitles();
+            Send("loadfile",cacheStream.Url,"replace",-1,new Dictionary<string,string>{{"aid","auto"},{"sid","no"},{"sub-delay",(-cacheOrigin).ToString("0.######",System.Globalization.CultureInfo.InvariantCulture)},{"demuxer","lavf"},{"demuxer-lavf-format","mpegts"},{"cache","yes"},{"cache-secs","5"},{"demuxer-max-bytes","32MiB"},{"demuxer-max-back-bytes","0"},{"force-seekable","yes"},{"hr-seek","yes"},{"start",offset.ToString("0.######",System.Globalization.CultureInfo.InvariantCulture)}});
             Send("set_property","pause",false);
         }
         void BeginCache(double from) {
@@ -817,8 +939,10 @@ namespace Luma {
             }
         }
         void ShowGpu() {
-            MessageBox.Show("Сборка 0.3.3 exp · кэш кадров 1080p: 1024 МиБ · запас до 240 с\n"+
+            MessageBox.Show("Сборка 3.3.7.1 exp · кэш кадров всех режимов: 1024 МиБ · запас до 240 с\n"+
                 "RIFE "+ProcessingHeight+"p: генерация 60 FPS на GPU с последующим масштабированием под экран.\n\n"+
+                "720p/900p/1020p/1080p: объединены 32 цепочки RIFE (Mul/Add/LeakyReLU).\n"+
+                (ProcessingHeight==1020 ? "1020p exp: уменьшение разрешения с сохранением пропорций, затем масштабирование под экран.\n\n" : "\n")+
                 "Кэш до 10 ГБ; просмотренные части удаляются. Бирюзовые участки шкалы уже готовы: переход внутри них не перезапускает подготовку.\n\n"+
                 "Декодер: "+decoder+"\nПропуски вывода: "+dropped.ToString("0")+"\n"+
                 (playbackNotice.Length>0 && File.Exists(Path.Combine(root,"logs","prerender-error.txt")) ? File.ReadAllText(Path.Combine(root,"logs","prerender-error.txt")) : cache!=null ? cacheMessage : "Для подготовки видео заранее нажмите «Подготовить кэш»."),"Диагностика");

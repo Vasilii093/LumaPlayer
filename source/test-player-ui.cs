@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Reflection;
@@ -21,13 +21,16 @@ class PlayerUiTests {
    typeof(Player).GetField("writer",F).SetValue(p,w);
    typeof(Player).GetField("ready",F).SetValue(p,true);
    var mode=(ComboBox)Field(p,"motion");
-   Check(mode.Items.Count==4,"Unexpected modes");
+   Check(mode.Items.Count==5,"Unexpected modes");
    mode.SelectedIndex=0; ms.SetLength(0); mode.SelectedIndex=1;
    Check(Encoding.UTF8.GetString(ms.ToArray()).Contains("interpolate-rife-resident.vpy"),"Native RIFE missing");
    ms.SetLength(0);mode.SelectedIndex=2;
    Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==900,"900p selection");
    Check(!Encoding.UTF8.GetString(ms.ToArray()).Contains("vapoursynth"),"900p started slow live filter");
-   mode.SelectedIndex=3;Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==1080,"1080p selection");
+   mode.SelectedIndex=3;Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==1020,"1020p selection");
+   ms.SetLength(0);mode.SelectedIndex=4;
+   Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==1080,"1080p selection");
+   Check(!Encoding.UTF8.GetString(ms.ToArray()).Contains("vapoursynth"),"1020p started live filter instead of cache");
    Check(PreRenderSession.RifeScript(23,900)==(PreRenderSession.RifeThroughput ? "interpolate-rife-throughput.vpy" : "interpolate-rife-resident.vpy") && PreRenderSession.RifeScript(23,1080)=="interpolate-rife-resident.vpy","HD native cache missing");
    mode.SelectedIndex=1;
    var seek=(ClickSeekBar)Field(p,"seek"); var sh=seek.Handle;
@@ -82,7 +85,11 @@ class PlayerUiTests {
    Check(Encoding.UTF8.GetString(ms.ToArray()).Contains("\"aid\":\"3\""),"Return to source lost selected track");
    Check((string)Field(p,"selectedAudio")=="3","Cache track overwrote source selection");
    ms.SetLength(0);
-   typeof(Player).GetMethod("LoadFile",F).Invoke(p,new object[]{Path.GetFullPath("outputs/cache-test-sample.mp4")});
+   // This test writes commands to memory; no media is decoded. Own the path
+   // fixture so the new-file state test does not depend on an old output folder.
+   string sourceFixture=Path.GetTempFileName();
+   try { typeof(Player).GetMethod("LoadFile",F).Invoke(p,new object[]{sourceFixture}); }
+   finally { File.Delete(sourceFixture); }
    Check((string)Field(p,"selectedAudio")=="auto" && !(bool)Field(p,"sourceLoaded"),"New file retained track selection or old loaded state");
    Check(Encoding.UTF8.GetString(ms.ToArray()).Contains("\"aid\":\"auto\""),"New source did not reset audio");
    Check(PreRenderSession.NormalizeAudioTrack(false)=="no" && PreRenderSession.NormalizeAudioTrack("False")=="no","Boolean aid leaked into command line");

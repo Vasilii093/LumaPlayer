@@ -7,7 +7,8 @@ class BufferTest {
  static int Main(string[] args){
   PreRenderSession s=null;
   try {
-   s=new PreRenderSession(Path.GetFullPath(args[0]),args[1],1922,1930,60,720,0,false,"auto",1);
+   int height=args.Length>2?Int32.Parse(args[2]):720;
+   s=new PreRenderSession(Path.GetFullPath(args[0]),args[1],1922,1930,60,height,0,false,"auto",1);
    int count=0;string error=null;var paused=new ManualResetEvent(false);
    s.Ready=c=>{if(Interlocked.Increment(ref count)==1)s.UpdatePlaybackBuffer(240,true);};
    s.Status=m=>{if(m.Contains("Запас готов"))paused.Set();};

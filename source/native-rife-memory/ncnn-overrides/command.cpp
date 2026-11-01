@@ -964,7 +964,7 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 void VkCompute::record_download_mapped(const VkMat& src, VkMat& dst, const Option& opt)
 {
     Option staging=opt;staging.blob_vkallocator=opt.staging_vkallocator;
-    record_clone(src,dst,staging);
+    if(src.data!=dst.data)record_clone(src,dst,staging); // A shader may already have written the mapped buffer.
     // barrier device any @ compute to host-read @ compute
     if (dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
     {

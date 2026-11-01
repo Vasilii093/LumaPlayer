@@ -1,3 +1,4 @@
+#include "fused_residual.h"
 // rife implemented with ncnn library
 
 #include "rife.h"
@@ -13,6 +14,7 @@
 
 #include "rife_preproc.comp.hex.h"
 #include "rife_postproc.comp.hex.h"
+#include "rife_postproc_normalized.comp.h"
 #include "rife_preproc_tta.comp.hex.h"
 #include "rife_postproc_tta.comp.hex.h"
 #include "rife_flow_tta_avg.comp.hex.h"
@@ -67,7 +69,8 @@ RIFE::~RIFE()
     // cleanup preprocess and postprocess pipeline
     {
         delete rife_preproc;
-        delete rife_postproc;
+        delete unitOutput;
+    delete rife_postproc;
         delete rife_flow_tta_avg;
         delete rife_flow_tta_temporal_avg;
         delete rife_out_tta_temporal_avg;
@@ -153,6 +156,16 @@ int RIFE::load(const std::string& modeldir)
     if(std::getenv("LUMA_RIFE_NO_WINOGRAD"))opt.use_winograd_convolution=false;
     if(std::getenv("LUMA_RIFE_PACK8"))opt.use_shader_pack8=true;
 
+    directOut=memoryOptimized && std::getenv("LUMA_IO_OUTPUT");
+    directIn=memoryOptimized && std::getenv("LUMA_IO_INPUT");
+    if(vkdev && memoryOptimized && std::getenv("LUMA_IO_UNIT")) {
+        std::vector<uint32_t> code;
+        if(compile_spirv_module(rife_postproc_normalized_data,sizeof(rife_postproc_normalized_data)-1,opt,code))return -1;
+        unitOutput=new ncnn::Pipeline(vkdev);
+        unitOutput->set_optimal_local_size_xyz(8,8,3);
+        std::vector<ncnn::vk_specialization_type> specs(1);specs[0].i=1;
+        if(unitOutput->create(code.data(),code.size()*4,specs))return -1;
+    }
     flownet.opt = opt;
     contextnet.opt = opt;
     fusionnet.opt = opt;
@@ -162,6 +175,7 @@ int RIFE::load(const std::string& modeldir)
     fusionnet.set_vulkan_device(vkdev);
 
     flownet.register_custom_layer("rife.Warp", Warp_layer_creator);
+    flownet.register_custom_layer("luma.Residual", LumaResidual_layer_creator);
     contextnet.register_custom_layer("rife.Warp", Warp_layer_creator);
     fusionnet.register_custom_layer("rife.Warp", Warp_layer_creator);
 
@@ -1645,7 +1659,7 @@ int RIFE::process_v4_cached(const float* src0R,const float* src0G,const float* s
             inputStaging0.allocator->flush(inputStaging0.data);inputStaging1.allocator->flush(inputStaging1.data);
             inputStaging0.data->access_flags=VK_ACCESS_HOST_WRITE_BIT;inputStaging0.data->stage_flags=VK_PIPELINE_STAGE_HOST_BIT;
             inputStaging1.data->access_flags=VK_ACCESS_HOST_WRITE_BIT;inputStaging1.data->stage_flags=VK_PIPELINE_STAGE_HOST_BIT;
-            cmd.record_clone(inputStaging0,in0_gpu,opt);cmd.record_clone(inputStaging1,in1_gpu,opt);
+            if(directIn){in0_gpu=inputStaging0;in1_gpu=inputStaging1;}else{cmd.record_clone(inputStaging0,in0_gpu,opt);cmd.record_clone(inputStaging1,in1_gpu,opt);}
         } else {cmd.record_clone(in0,in0_gpu,opt);cmd.record_clone(in1,in1_gpu,opt);}
     }
 
@@ -1722,7 +1736,9 @@ int RIFE::process_v4_cached(const float* src0R,const float* src0G,const float* s
 
         profile.mark(5);
         if(gpuProfile)cmd.record_write_timestamp(2);
-        out_gpu.create(w, h, channels, sizeof(float), 1, blob_vkallocator);
+        out_gpu.create(w,h,channels,sizeof(float),1,directOut ? staging_vkallocator : blob_vkallocator);
+        if(out_gpu.empty())return -100;
+        if(directOut)outputStaging=out_gpu;
 
         // postproc
         {
@@ -1738,7 +1754,7 @@ int RIFE::process_v4_cached(const float* src0R,const float* src0G,const float* s
             constants[4].i = out_gpu.h;
             constants[5].i = out_gpu.cstep;
 
-            cmd.record_pipeline(rife_postproc, bindings, constants, out_gpu);
+            cmd.record_pipeline(unitOutput ? unitOutput : rife_postproc, bindings, constants, out_gpu);
         }
 
 
@@ -1762,7 +1778,9 @@ int RIFE::process_v4_cached(const float* src0R,const float* src0G,const float* s
         const float* outR{ out.channel(0) };
         const float* outG{ out.channel(1) };
         const float* outB{ out.channel(2) };
-        if(memoryOptimized) {
+        if(unitOutput) {
+            for(int y=0;y<h;++y){std::memcpy(dstR+y*stride,outR+y*w,w*sizeof(float));std::memcpy(dstG+y*stride,outG+y*w,w*sizeof(float));std::memcpy(dstB+y*stride,outB+y*w,w*sizeof(float));}
+        } else if(memoryOptimized) {
             scalePlane(outR,w,dstR,stride,w,h,1/255.0f);scalePlane(outG,w,dstG,stride,w,h,1/255.0f);scalePlane(outB,w,dstB,stride,w,h,1/255.0f);
         } else {
         for (auto y{ 0 }; y < h; y++) {
