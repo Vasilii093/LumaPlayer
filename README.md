@@ -1,5 +1,7 @@
 # LumaPlayer 3.3.7.1 exp
 
+> Все выпуски и изменения собраны в [списке версий](https://github.com/Vasilii093/LumaPlayer/blob/versions/VERSIONS.md). Исходники выпусков находятся в ветке `versions` и в тегах, установочные архивы — в [Releases](https://github.com/Vasilii093/LumaPlayer/releases).
+
 **LumaPlayer** — экспериментальный медиаплеер для Windows с интерполяцией видео до 60 кадров в секунду. Он использует модель **RIFE 4.6** для создания промежуточных кадров и позволяет заранее подготовить видео к просмотру.
 
 [Скачать переносимую сборку](https://github.com/Vasilii093/LumaPlayer/releases/tag/v3.3.7.1-exp) · [Исходники](source/) · [Результаты испытаний](source/validation-io1080/)
