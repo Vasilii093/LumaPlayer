@@ -21,16 +21,19 @@ class PlayerUiTests {
    typeof(Player).GetField("writer",F).SetValue(p,w);
    typeof(Player).GetField("ready",F).SetValue(p,true);
    var mode=(ComboBox)Field(p,"motion");
-   Check(mode.Items.Count==5,"Unexpected modes");
+   Check(mode.Items.Count==7,"Unexpected modes");
    mode.SelectedIndex=0; ms.SetLength(0); mode.SelectedIndex=1;
    Check(Encoding.UTF8.GetString(ms.ToArray()).Contains("interpolate-rife-resident.vpy"),"Native RIFE missing");
-   ms.SetLength(0);mode.SelectedIndex=2;
-   Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==900,"900p selection");
-   Check(!Encoding.UTF8.GetString(ms.ToArray()).Contains("vapoursynth"),"900p started slow live filter");
-   mode.SelectedIndex=3;Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==1020,"1020p selection");
-   ms.SetLength(0);mode.SelectedIndex=4;
-   Check((int)typeof(Player).GetProperty("ProcessingHeight",F).GetValue(p,null)==1080,"1080p selection");
-   Check(!Encoding.UTF8.GetString(ms.ToArray()).Contains("vapoursynth"),"1020p started live filter instead of cache");
+   var heightProperty=typeof(Player).GetProperty("ProcessingHeight",F);
+   var fpsProperty=typeof(Player).GetProperty("ProcessingFps",F);
+   int[] heights={720,720,720,900,900,1020,1080};
+   int[] rates={60,60,90,60,72,60,60};
+   for(int i=0;i<heights.Length;i++) {
+    ms.SetLength(0);mode.SelectedIndex=i;
+    Check((int)heightProperty.GetValue(p,null)==heights[i],"Wrong height at "+i);
+    Check((int)fpsProperty.GetValue(p,null)==rates[i],"Wrong FPS at "+i);
+    if(i>=2)Check(!Encoding.UTF8.GetString(ms.ToArray()).Contains("vapoursynth"),"Cache mode started live filter");
+   }
    Check(PreRenderSession.RifeScript(23,900)==(PreRenderSession.RifeThroughput ? "interpolate-rife-throughput.vpy" : "interpolate-rife-resident.vpy") && PreRenderSession.RifeScript(23,1080)=="interpolate-rife-resident.vpy","HD native cache missing");
    mode.SelectedIndex=1;
    var seek=(ClickSeekBar)Field(p,"seek"); var sh=seek.Handle;

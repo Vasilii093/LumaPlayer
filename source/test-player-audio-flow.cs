@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Text;
@@ -100,7 +100,7 @@ class AudioFlowTest {
   pipe="luma-audio-test-"+Guid.NewGuid().ToString("N");
   using(player=new Player(null)) {
    Set("root",Path.GetFullPath(args[0]));Set("pipeName",pipe);
-   ((ComboBox)Get("motion")).SelectedIndex=2;
+   ((ComboBox)Get("motion")).SelectedIndex=3;
    player.Shown+=async delegate {await Flow(args.Length>1?args[1]:null,args.Length>2?args[2]:null,args.Length==1);};
    Application.Run(player);
   }

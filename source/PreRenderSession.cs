@@ -83,7 +83,7 @@ namespace Luma {
         public PreRenderSession(string appRoot, string input, double position, double duration,
             int target, int processingHeight, int guard, bool scale, string audioTrack,
             double segmentSeconds = 15, long byteLimit = DefaultLimit, int interpolationModel = 23, bool persistentEncoder = true, bool continuousTransport = false) {
-            if(target!=60 && target!=120) throw new ArgumentException("FPS");
+            if(target!=60 && target!=72 && target!=90 && target!=120) throw new ArgumentException("FPS");
             if(duration<=position || position<0 || segmentSeconds<=0 || byteLimit<1024*1024)
                 throw new ArgumentException("Invalid cache bounds");
             root=appRoot; source=input; start=position; end=duration; fps=target;
