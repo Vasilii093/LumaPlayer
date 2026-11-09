@@ -18,16 +18,8 @@ namespace Luma {
     // A disk-backed producer. Only atomically published, closed files can play.
     // The limit includes the in-progress file, not just completed segments.
     public sealed class PreRenderSession : IDisposable {
-#if LUMA_RIFE_NATIVE
         public const bool NativeRife = true;
-#else
-        public const bool NativeRife = false;
-#endif
-#if LUMA_RIFE_THROUGHPUT
         public const bool RifeThroughput = true;
-#else
-        public const bool RifeThroughput = false;
-#endif
         public static bool Fast900(int model,int height){return NativeRife && RifeThroughput && model==23 && height==900;}
         public static string RifeScript(int model, int height) {
             if(model!=23 || (height!=720 && height!=900 && height!=1020 && height!=1080)) throw new ArgumentException("Unsupported RIFE profile");

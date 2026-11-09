@@ -23,7 +23,7 @@ model = int(settings[3]) if len(settings) > 3 else 23
 gpu_threads = int(settings[4]) if len(settings) > 4 else 2
 if gpu_threads not in (1, 2, 3, 4):
     raise ValueError("Invalid GPU concurrency")
-if model not in (23, 70, 71):
+if model != 23:
     raise ValueError("Unsupported bundled RIFE model")
 if target_fps not in (60, 72, 90, 120):
     raise ValueError("Luma: target FPS must be 60, 72, 90 or 120")
@@ -45,40 +45,34 @@ if float(rate) < target_fps:
     else:
         rgb = core.resize.Bicubic(clip, format=vs.RGBS, matrix_in_s="709")
     # Mark hard cuts, so RIFE repeats the source rather than inventing a transition.
-    if protection != 2 or model in (23, 71):
-        small = core.resize.Bilinear(rgb, width=64, height=36)
-        next_small = small[1:] + small[-1]
-        diffs = [core.std.PlaneStats(small, next_small, plane=p) for p in range(3)]
-        # Coverage catches localized rapid motion and dark cuts that a global
-        # mean misses. Conservative heuristic, not a confidence guarantee.
-        difference = core.std.Expr([small, next_small], "x y - abs")
-        changed = core.std.Expr(difference, "x 0.078431 > 1 0 ?")
-        coverage = [core.std.PlaneStats(changed, plane=p) for p in range(3)]
-        threshold = 12 / 255.0
-        def mark_cut(n, f):
-            result = f[0].copy()
-            cut = protection != 2 and max(frame.props["PlaneStatsDiff"] for frame in f[1:4]) >= threshold
-            risky = protection == 1 and max(frame.props["PlaneStatsAverage"] for frame in f[4:7]) >= 18 / 255.0
-            # Never infer equality from the thumbnail alone: fine moving details
-            # can disappear during reduction. Only scan full pixels on candidates.
-            duplicate = model in (23,71) and all(frame.props['PlaneStatsDiff']==0 for frame in f[1:4]) and all(
-                np.array_equal(np.asarray(f[0][p]),np.asarray(f[7][p])) for p in range(3))
-            result.props["_SceneChangeNext"] = int(cut or risky or duplicate)
-            return result
-        rgb = core.std.ModifyFrame(rgb, clips=[rgb] + diffs + coverage + ([rgb[1:]+rgb[-1]] if model in (23,71) else []), selector=mark_cut)
+    small = core.resize.Bilinear(rgb, width=64, height=36)
+    next_small = small[1:] + small[-1]
+    diffs = [core.std.PlaneStats(small, next_small, plane=p) for p in range(3)]
+    # Coverage catches localized rapid motion and dark cuts that a global
+    # mean misses. Conservative heuristic, not a confidence guarantee.
+    difference = core.std.Expr([small, next_small], "x y - abs")
+    changed = core.std.Expr(difference, "x 0.078431 > 1 0 ?")
+    coverage = [core.std.PlaneStats(changed, plane=p) for p in range(3)]
+    threshold = 12 / 255.0
+    def mark_cut(n, f):
+        result = f[0].copy()
+        cut = protection != 2 and max(frame.props["PlaneStatsDiff"] for frame in f[1:4]) >= threshold
+        risky = protection == 1 and max(frame.props["PlaneStatsAverage"] for frame in f[4:7]) >= 18 / 255.0
+        # Never infer equality from the thumbnail alone: fine moving details
+        # can disappear during reduction. Only scan full pixels on candidates.
+        duplicate = all(frame.props['PlaneStatsDiff']==0 for frame in f[1:4]) and all(
+            np.array_equal(np.asarray(f[0][p]),np.asarray(f[7][p])) for p in range(3))
+        result.props["_SceneChangeNext"] = int(cut or risky or duplicate)
+        return result
+    rgb = core.std.ModifyFrame(rgb, clips=[rgb] + diffs + coverage + [rgb[1:]+rgb[-1]], selector=mark_cut)
     duplicate_rgb=rgb  # Pre-inference node, also used by regression tests.
-    original_width, original_height = rgb.width, rgb.height
-    if model == 71:
-        # The half-size network needs multiples of 32; retain full-size RGB
-        # for the final GPU warps and remove only the explicit padding later.
-        rgb = core.std.AddBorders(rgb, right=(-rgb.width) % 64, bottom=(-rgb.height) % 64)
+
     rgb = core.rifebatch.RIFE(
-        rgb, batch=2, model=23 if model == 71 else model, fps_num=target_fps, fps_den=1,
-        gpu_thread=gpu_threads, tta=False, uhd=True, sc=(protection != 2 or model in (23, 71)),
-        model_path=os.path.join(here, "models", "rife-v4.6-luma-hybrid" if model == 71 else "rife-v4.25-lite_ensembleFalse" if model == 70 else "rife-v4.6_ensembleFalse_residual" if processing_height == 900 else "rife-v4.6_ensembleFalse"),
+        rgb, batch=2, model=23, fps_num=target_fps, fps_den=1,
+        gpu_thread=gpu_threads, tta=False, uhd=True, sc=True,
+        model_path=os.path.join(here, "models", "rife-v4.6_ensembleFalse_residual" if processing_height == 900 else "rife-v4.6_ensembleFalse"),
     )
-    if model == 71:
-        rgb = core.std.CropAbs(rgb, original_width, original_height)
+
     clip = core.resize.Bicubic(rgb, format=vs.YUV420P10 if depth > 8 else vs.YUV420P8, matrix_s="709")
 
 clip.set_output()

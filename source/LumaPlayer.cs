@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-[assembly: System.Reflection.AssemblyVersion("1.0.1.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.1.0")]
-[assembly: System.Reflection.AssemblyInformationalVersion("1.0.1 stable")]
+[assembly: System.Reflection.AssemblyVersion("1.1.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("1.1.0 stable")]
 
 namespace Luma {
     static class Program {
@@ -33,7 +33,7 @@ namespace Luma {
                 }
             };
             bool first;
-            using(var mutex=new Mutex(true,"Local\\LumaPlayer.SingleInstance",out first)) {
+            using(var mutex=new Mutex(true,"Local\\LumaPlayer.1.1.0.SingleInstance",out first)) {
                 if(!first) { MessageBox.Show("Luma Player уже открыт.","Luma"); return; }
                 PreRenderSession.CleanAbandoned(AppDomain.CurrentDomain.BaseDirectory);
                 Application.Run(new Player(args.Length > 0 ? args[0] : null));
@@ -283,11 +283,12 @@ namespace Luma {
         double dropped;
         int videoParamsRequest;
         string decoder = "—";
-        string currentFile, pipeName = "luma-player";
+        string currentFile, pipeName = "luma-player-110";
         string root = AppDomain.CurrentDomain.BaseDirectory;
         string startupFile;
         public Player(string file) {
             startupFile = file;
+            LoadAdjustmentSettings();
             Text = "Luma Player";
             Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             BackColor = bg; ForeColor = Color.White;
@@ -331,6 +332,7 @@ namespace Luma {
             volume.TickStyle=TickStyle.None; volume.BackColor=bg;
             volume.ValueChanged += delegate { Send("set_property","volume",volume.Value); };
             controls.Controls.Add(volume);
+            Button("Ссылка",930,42,125,delegate { OpenUrl(); });
             quality.SetBounds(18,88,190,30); StyleCombo(quality);
             quality.Items.AddRange(new object[]{"Вписать в экран","Заполнить с обрезкой","Растянуть на экран"});
             quality.SelectedIndex=0; quality.SelectedIndexChanged += delegate { ApplyScreenFit(); };
@@ -368,6 +370,7 @@ namespace Luma {
             }
             Button("Настройки",787,88,140,delegate { ShowSettings(); });
             Button("Звук",937,88,125,delegate { ShowSound(); });
+            Button("Изображение",1070,88,150,delegate { ShowPicture(); });
             info.SetBounds(22,132,1030,22); info.Font=new Font("Segoe UI",9);
             info.AutoEllipsis=true;
             play.BackColor=Color.FromArgb(94,94,225);
@@ -441,7 +444,7 @@ namespace Luma {
                         Send("observe_property",3,"pause");
                         Send("observe_property",5,"frame-drop-count"); Send("observe_property",6,"hwdec-current");
                         Send("request_log_messages","warn");
-                        UI(delegate { ready=true; info.Text="Готово · откройте файл"; if(startupFile!=null) LoadFile(startupFile); });
+                        UI(delegate { ready=true; ApplyPicture(); Send("set_property","af",AudioGraph(soundGain,soundBands)); info.Text="Готово · откройте файл"; if(startupFile!=null) LoadFile(startupFile); });
                         string line;
                         var json=new JavaScriptSerializer();
                         while(!closing && (line=reader.ReadLine())!=null) {
@@ -495,7 +498,7 @@ namespace Luma {
                             if(ev=="end-file" && obj.ContainsKey("reason") && Convert.ToString(obj["reason"])=="eof")
                                 UI(delegate { if(cache!=null) CacheEnded(); });
                             if(ev=="end-file" && obj.ContainsKey("reason") && Convert.ToString(obj["reason"])=="error")
-                                UI(delegate { empty.Visible=true; info.Text="Не удалось открыть файл · см. logs/mpv.log"; });
+                                UI(delegate { empty.Visible=true; info.Text="Не удалось открыть видео · см. logs/mpv.log"; });
                             if(ev!="property-change" || !obj.ContainsKey("data") || obj["data"]==null) continue;
                             string name=Convert.ToString(obj["name"]); object data=obj["data"];
                             UI(delegate {
@@ -519,6 +522,48 @@ namespace Luma {
                 if(Object.ReferenceEquals(writer,owned))writer=null;
                 try {owned.Dispose();} catch(IOException) {} catch(ObjectDisposedException) {}
             }
+        }
+        int pictureBrightness, pictureContrast, pictureSaturation, pictureGamma, pictureSharpness;
+        sealed class AdjustmentSettings {
+            public int[] Image = new int[5];
+            public int[] Sound = new int[6];
+            public int[][] ImagePresets = new int[][] {new int[5],new int[5],new int[5]};
+            public int[][] SoundPresets = new int[][] {new int[6],new int[6],new int[6]};
+        }
+        AdjustmentSettings adjustmentSettings=new AdjustmentSettings();
+        static int[] ValidAdjustment(int[] values,bool image) {
+            int count=image?5:6;var result=new int[count];if(values==null||values.Length!=count)return result;
+            for(int i=0;i<count;i++) {int min=image?(i==4?0:-100):(i==0?0:-9),max=image?100:(i==0?12:9);result[i]=Math.Max(min,Math.Min(max,values[i]));}return result;
+        }
+        void LoadAdjustmentSettings() {
+            try {
+                string file=Path.Combine(root,"settings","adjustments.json");if(!File.Exists(file))return;
+                var loaded=new JavaScriptSerializer().Deserialize<AdjustmentSettings>(File.ReadAllText(file));if(loaded==null)return;
+                adjustmentSettings.Image=ValidAdjustment(loaded.Image,true);adjustmentSettings.Sound=ValidAdjustment(loaded.Sound,false);
+                for(int i=0;i<3;i++) {
+                    adjustmentSettings.ImagePresets[i]=ValidAdjustment(loaded.ImagePresets!=null&&i<loaded.ImagePresets.Length?loaded.ImagePresets[i]:null,true);
+                    adjustmentSettings.SoundPresets[i]=ValidAdjustment(loaded.SoundPresets!=null&&i<loaded.SoundPresets.Length?loaded.SoundPresets[i]:null,false);
+                }
+                var v=adjustmentSettings.Image;pictureBrightness=v[0];pictureContrast=v[1];pictureSaturation=v[2];pictureGamma=v[3];pictureSharpness=v[4];
+                v=adjustmentSettings.Sound;soundGain=v[0];for(int i=0;i<5;i++)soundBands[i]=v[i+1];
+            } catch(IOException) {} catch(UnauthorizedAccessException) {} catch(ArgumentException) {} catch(InvalidOperationException) {}
+        }
+        bool SaveAdjustmentSettings() {
+            adjustmentSettings.Image=new int[]{pictureBrightness,pictureContrast,pictureSaturation,pictureGamma,pictureSharpness};
+            adjustmentSettings.Sound=new int[]{soundGain,soundBands[0],soundBands[1],soundBands[2],soundBands[3],soundBands[4]};
+            try {
+                string folder=Path.Combine(root,"settings");Directory.CreateDirectory(folder);string target=Path.Combine(folder,"adjustments.json"),temp=target+".tmp";
+                File.WriteAllText(temp,new JavaScriptSerializer().Serialize(adjustmentSettings));
+                if(File.Exists(target))File.Replace(temp,target,null);else File.Move(temp,target);return true;
+            } catch(IOException) {info.Text="Не удалось сохранить настройки изображения и звука.";return false;}
+              catch(UnauthorizedAccessException) {info.Text="Нет доступа для сохранения настроек изображения и звука.";return false;}
+        }
+        void ApplyPicture() {
+            Send("set_property","brightness",pictureBrightness);
+            Send("set_property","contrast",pictureContrast);
+            Send("set_property","saturation",pictureSaturation);
+            Send("set_property","gamma",pictureGamma);
+            Send("set_property","sharpen",pictureSharpness/100.0);
         }
         void Send(params object[] command) {
             lock(sendLock) {
@@ -547,12 +592,27 @@ namespace Luma {
                 if(d.ShowDialog()==DialogResult.OK) LoadFile(d.FileName);
             }
         }
+        static bool IsNetworkSource(string path) {
+            Uri uri;
+            return Uri.TryCreate(path,UriKind.Absolute,out uri) && (uri.Scheme==Uri.UriSchemeHttp || uri.Scheme==Uri.UriSchemeHttps) && !String.IsNullOrEmpty(uri.Host) && String.IsNullOrEmpty(uri.UserInfo);
+        }
+        void OpenUrl() {
+            using(var dialog=new Form { Text="Открыть ссылку", StartPosition=FormStartPosition.CenterParent, FormBorderStyle=FormBorderStyle.FixedDialog, MinimizeBox=false, MaximizeBox=false, ClientSize=new Size(600,110) }) {
+                var label=new Label { Text="Прямая ссылка HTTP или HTTPS:", Left=12, Top=12, AutoSize=true };
+                var input=new TextBox { Left=12, Top=36, Width=576 };
+                var ok=new Button { Text="Открыть", Left=400, Top=70, Width=90, DialogResult=DialogResult.OK };
+                var cancel=new Button { Text="Отмена", Left=498, Top=70, Width=90, DialogResult=DialogResult.Cancel };
+                dialog.Controls.AddRange(new Control[]{label,input,ok,cancel}); dialog.AcceptButton=ok; dialog.CancelButton=cancel;
+                if(dialog.ShowDialog(this)==DialogResult.OK) { string value=input.Text.Trim(); if(!IsNetworkSource(value)) { MessageBox.Show("Укажите корректную ссылку HTTP или HTTPS без имени пользователя и пароля.","Luma"); return; } LoadFile(value); }
+            }
+        }
         void LoadFile(string path) {
-            if(!File.Exists(path)) { MessageBox.Show("Файл не найден: "+path,"Luma"); return; }
+            bool network=IsNetworkSource(path);
+            if(!network && !File.Exists(path)) { MessageBox.Show("Файл не найден или ссылка не поддерживается.","Luma"); return; }
             if(!ready) { startupFile=path; return; }
             CancelCache(); currentFile=path; duration=0; position=0; seek.Value=0;
             selectedAudio="auto"; selectedSubtitle="auto"; sourceLoaded=false; audioTracksRequest=videoParamsRequest=0; audioTracks.Clear(); subtitleTracks.Clear(); playbackNotice="";
-            Text=Path.GetFileName(path)+" — Luma Player";
+            Text=(network ? "Сетевое видео" : Path.GetFileName(path))+" — Luma Player";
             Send("set_property","vf","");
             Send("loadfile",path,"replace",-1,new Dictionary<string,string>{{"aid","auto"},{"sid","auto"},{"sub-delay","0"}});
             Send("set_property","pause",false);
@@ -766,6 +826,7 @@ namespace Luma {
             Send("set_property","pause",false);
         }
         void BeginCache(double from) {
+            if(currentFile!=null && IsNetworkSource(currentFile)) { info.Text="Для сетевого видео используйте режим RIFE 720p60 в реальном времени."; return; }
             if(!ready || currentFile==null || duration<=0 || (cache==null && !sourceLoaded)) { info.Text="Дождитесь открытия видео"; return; }
             playbackNotice="";
             CancelCache();
@@ -914,6 +975,45 @@ namespace Luma {
                 try {sheet.ShowDialog(this);} finally { foreach(var item in items) {item.Visible=false; controls.Controls.Add(item);} dialogOpen=false; ShowChrome();}
             }
         }
+        void ShowAdjustments(string title,string[] names,int[] minimum,int[] maximum,int[] initial,Action<int[]> apply) {
+            dialogOpen=true; ShowChrome();
+            int rowHeight=Math.Max(65,Font.Height+48),start=100,buttonY=start+names.Length*rowHeight+8;
+            using(var sheet=SettingsSheet(title,buttonY+112)) {
+                sheet.Controls.Add(new Label {Text="Изменения применяются сразу. Ноль — без коррекции.",Bounds=new Rectangle(24,14,450,36),ForeColor=muted});
+                var sliders=new TrackBar[names.Length];
+                bool updating=false;
+                RoundedButton saveButton=null;
+                Action refresh=delegate { if(updating)return; if(saveButton!=null)saveButton.Text="Сохранить"; var values=new int[sliders.Length];for(int n=0;n<values.Length;n++)values[n]=sliders[n].Value;apply(values); };
+                for(int i=0;i<names.Length;i++) {
+                    int index=i;
+                    sheet.Controls.Add(new Label {Text=names[i],Bounds=new Rectangle(24,start+i*rowHeight,350,Font.Height+6)});
+                    var valueLabel=new Label {Text=initial[i].ToString(),TextAlign=ContentAlignment.MiddleRight,Bounds=new Rectangle(400,start+i*rowHeight,60,Font.Height+6)};
+                    sheet.Controls.Add(valueLabel);
+                    var slider=new TrackBar {Name="adjustment"+i,Minimum=minimum[i],Maximum=maximum[i],Value=initial[i],SmallChange=1,LargeChange=5,TickStyle=TickStyle.None,AutoSize=false,Bounds=new Rectangle(18,start+i*rowHeight+Font.Height+6,450,32),BackColor=bg,AccessibleName=names[i]};
+                    sliders[i]=slider;sheet.Controls.Add(slider);
+                    slider.ValueChanged+=delegate {valueLabel.Text=sliders[index].Value.ToString();refresh();};
+                }
+                bool image=names.Length==5;
+                int[][] custom=image?adjustmentSettings.ImagePresets:adjustmentSettings.SoundPresets;
+                int[][] builtin=image?new int[][]{new int[5],new int[]{0,8,12,0,15},new int[]{0,0,0,0,35},new int[]{0,-10,-5,3,0}}:new int[][]{new int[6],new int[]{0,-3,-2,3,2,-1},new int[]{0,5,3,0,0,0},new int[]{6,0,0,0,0,0}};
+                string[] presetNames=image?new string[]{"Нейтрально","Насыщеннее","Чётче","Мягче"}:new string[]{"Нейтрально","Речь","Бас","Тихая запись"};
+                var preset=new ComboBox {Name="preset",DropDownStyle=ComboBoxStyle.DropDownList,Bounds=new Rectangle(24,55,436,30)};
+                preset.Items.AddRange(presetNames);for(int i=1;i<=3;i++)preset.Items.Add("Пользовательский "+i);sheet.Controls.Add(preset);
+                preset.SelectedIndexChanged+=delegate {int n=preset.SelectedIndex;if(n<0)return;int[] values=n<builtin.Length?builtin[n]:custom[n-builtin.Length];updating=true;try{for(int i=0;i<sliders.Length;i++)sliders[i].Value=values[i];}finally{updating=false;}refresh();};
+                var slot=new ComboBox {Name="saveSlot",DropDownStyle=ComboBoxStyle.DropDownList,Bounds=new Rectangle(24,buttonY,260,30)};
+                for(int i=1;i<=3;i++)slot.Items.Add("Пользовательский "+i);slot.SelectedIndex=0;sheet.Controls.Add(slot);
+                var save=new RoundedButton {Text="Сохранить",Bounds=new Rectangle(300,buttonY,160,36)};
+                saveButton=save;
+                save.Click+=delegate {var values=new int[sliders.Length];for(int i=0;i<values.Length;i++)values[i]=sliders[i].Value;custom[slot.SelectedIndex]=values;if(SaveAdjustmentSettings())save.Text="Сохранено";else MessageBox.Show("Не удалось записать настройки. Проверьте доступ к папке плеера.","Luma");};sheet.Controls.Add(save);
+                var reset=new RoundedButton {Text="Сбросить",Bounds=new Rectangle(24,buttonY+50,140,38)};
+                reset.Click+=delegate {updating=true;try {foreach(var slider in sliders)slider.Value=0;} finally {updating=false;}refresh();};sheet.Controls.Add(reset);
+                var close=new RoundedButton {Text="Закрыть",Bounds=new Rectangle(300,buttonY+50,160,38),DialogResult=DialogResult.OK};sheet.Controls.Add(close);sheet.CancelButton=close;
+                try {sheet.ShowDialog(this);} finally {SaveAdjustmentSettings();dialogOpen=false;ShowChrome();}
+            }
+        }
+        void ShowPicture() {
+            ShowAdjustments("Изображение · цвет и резкость",new string[]{"Яркость","Контраст","Насыщенность","Гамма","Резкость"},new int[]{-100,-100,-100,-100,0},new int[]{100,100,100,100,100},new int[]{pictureBrightness,pictureContrast,pictureSaturation,pictureGamma,pictureSharpness},delegate(int[] v){pictureBrightness=v[0];pictureContrast=v[1];pictureSaturation=v[2];pictureGamma=v[3];pictureSharpness=v[4];ApplyPicture();});
+        }
         static string AudioGraph(int gain,int[] bands) {
             bool enabled=gain!=0; foreach(int band in bands) enabled|=band!=0;
             if(!enabled) return "";
@@ -925,31 +1025,10 @@ namespace Luma {
             return "@luma_sound:lavfi=["+String.Join(",",filters.ToArray())+"]";
         }
         void ShowSound() {
-            dialogOpen=true; ShowChrome();
-            int headerHeight=Font.Height*2+4,rowHeight=Math.Max(43,Font.Height+18),start=18+headerHeight+16;
-            int hintTop=start+rowHeight*6+6,buttonY=hintTop+Font.Height*2+20,buttonHeight=Math.Max(36,Font.Height+14);
-            using(var sheet=SettingsSheet("Звук · эквалайзер",buttonY+buttonHeight+24)) {
-                sheet.Controls.Add(new Label {Text="Усиление тихого звука и настройка тембра",Bounds=new Rectangle(24,18,450,headerHeight),ForeColor=muted});
-                string[] names={"Усиление, дБ","Бас · 100 Гц","300 Гц","Голос · 1 кГц","Чёткость · 3 кГц","Высокие · 10 кГц"};
-                var values=new NumericUpDown[6];
-                for(int i=0;i<6;i++) {
-                    sheet.Controls.Add(new Label {Text=names[i],Bounds=new Rectangle(24,start+4+i*rowHeight,270,Font.Height+6)});
-                    values[i]=new NumericUpDown {Minimum=i==0 ? 0 : -9,Maximum=i==0 ? 12 : 9,Value=i==0 ? soundGain : soundBands[i-1],Bounds=new Rectangle(340,start+i*rowHeight,120,Font.Height+12),BackColor=Color.FromArgb(32,36,45),ForeColor=Color.White};
-                    values[i].BorderStyle=BorderStyle.None;
-                    values[i].SizeChanged+=delegate(object sender,EventArgs e){Rounded.Region((Control)sender,7);};
-                    Rounded.Region(values[i],7);
-                    sheet.Controls.Add(values[i]);
-                }
-                sheet.Controls.Add(new Label {Text="Ограничитель пиков включается\nвместе с обработкой.",Bounds=new Rectangle(24,hintTop,450,Font.Height*2+4),ForeColor=muted});
-                var apply=new RoundedButton {Text="Применить",Bounds=new Rectangle(300,buttonY,160,buttonHeight),BackColor=Color.FromArgb(94,94,225)};
-                apply.Click+=delegate {soundGain=(int)values[0].Value;for(int i=0;i<5;i++)soundBands[i]=(int)values[i+1].Value;Send("set_property","af",AudioGraph(soundGain,soundBands));sheet.Close();}; sheet.Controls.Add(apply);
-                var reset=new RoundedButton {Text="Сбросить",Bounds=new Rectangle(24,buttonY,140,buttonHeight)};
-                reset.Click+=delegate {foreach(var value in values)value.Value=0;};sheet.Controls.Add(reset);
-                try {sheet.ShowDialog(this);} finally {dialogOpen=false;ShowChrome();}
-            }
+            ShowAdjustments("Звук · эквалайзер",new string[]{"Усиление, дБ","Бас · 100 Гц, дБ","300 Гц, дБ","Голос · 1 кГц, дБ","Чёткость · 3 кГц, дБ","Высокие · 10 кГц, дБ"},new int[]{0,-9,-9,-9,-9,-9},new int[]{12,9,9,9,9,9},new int[]{soundGain,soundBands[0],soundBands[1],soundBands[2],soundBands[3],soundBands[4]},delegate(int[] v){soundGain=v[0];for(int i=0;i<5;i++)soundBands[i]=v[i+1];Send("set_property","af",AudioGraph(soundGain,soundBands));});
         }
         void ShowGpu() {
-            MessageBox.Show("Сборка 1.0.1 stable · кэш кадров всех режимов: 1024 МиБ · запас до 240 с\n"+
+            MessageBox.Show("Сборка 1.1.0 stable · кэш кадров всех режимов: 1024 МиБ · запас до 240 с\n"+
                 "RIFE "+ProcessingHeight+"p: генерация "+(ProcessingFps)+" FPS на GPU с последующим масштабированием под экран.\n\n"+
                 "720p/900p/1020p/1080p: объединены 32 цепочки RIFE (Mul/Add/LeakyReLU).\n"+
                 (ProcessingHeight==1020 ? "1020p exp: уменьшение разрешения с сохранением пропорций, затем масштабирование под экран.\n\n" : "\n")+
@@ -1018,6 +1097,7 @@ namespace Luma {
             if(e.KeyCode==Keys.Escape && (quality.DroppedDown || motion.DroppedDown || protection.DroppedDown || buffer.DroppedDown || windowSize.DroppedDown))return;
             if((quality.ContainsFocus || motion.ContainsFocus || protection.ContainsFocus || volume.ContainsFocus || seek.ContainsFocus)
                 && (e.KeyCode==Keys.Left || e.KeyCode==Keys.Right)) return;
+            if(e.Control && e.Shift && e.KeyCode==Keys.O) { OpenUrl(); e.SuppressKeyPress=true; return; }
             if(e.Control && e.KeyCode==Keys.O) Open();
             else if(e.KeyCode==Keys.Space) Send("cycle","pause");
             else if(e.KeyCode==Keys.F11) Fullscreen();

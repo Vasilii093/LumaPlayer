@@ -8,6 +8,6 @@ Dependency: ncnn revision in ncnn-revision.txt, with the matching glslang revisi
 
 Run build-native.ps1 with -Toolchain, -NcnnSource and optionally -BuildDirectory. It uses this folder as the CMake source and verifies that the supplied private ncnn copy contains the exact command overrides. It does not alter that dependency or install the resulting DLL. Runtime dependencies and licenses are in engine/gpu/rife-memory.
 
-The player uses this path only when built with -NativeRife -RifeThroughput, and only for the 900p profile. The corresponding VapourSynth wrapper reserves up to 1024 MiB for its cache and uses 8 CPU workers. The cache producer uses 3 GPU workers and 6 concurrent/buffered output frames. Disk cache remains limited to 10 GiB.
+The player uses the memory backend for the 900p, 1020p and 1080p profiles. The 900p profile uses the throughput wrapper; 1020p and 1080p use the resident wrapper. The 900p VapourSynth wrapper reserves up to 1024 MiB for its cache and uses 8 CPU workers. The cache producer uses 3 GPU workers and 6 concurrent/buffered output frames. Disk cache remains limited to 10 GiB.
 
 Run source/test-rife-memory.py with the bundled Python to compare mapped transfers against the same backend's original transfers, including fractional source FPS, padded strides, reversed/repeated requests and concurrent output requests. The default path does not enable experimental FP16 arithmetic, pack8 or Winograd changes.

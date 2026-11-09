@@ -1,0 +1,4 @@
+PASS picture slider events, reset and custom slot 3
+PASS sound slider events, reset and custom slot 3
+PASS settings and custom presets loaded by fresh Player
+EXIT 0

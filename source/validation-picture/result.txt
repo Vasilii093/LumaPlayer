@@ -1,0 +1,18 @@
+PASS original source color properties and GPU sharpen
+PASS live 720p60 GPU sharpen
+AUDIO cache 90 fps: aid=1, WASAPI, unmuted
+PASS cache color and GPU sharpen reset and restore
+PASS actual player mode 2 container-fps=90
+AUDIO cache 60 fps: aid=1, WASAPI, unmuted
+PASS cache color and GPU sharpen reset and restore
+PASS actual player mode 3 container-fps=60
+AUDIO cache 72 fps: aid=1, WASAPI, unmuted
+PASS cache color and GPU sharpen reset and restore
+PASS actual player mode 4 container-fps=72
+AUDIO cache 60 fps: aid=1, WASAPI, unmuted
+PASS cache color and GPU sharpen reset and restore
+PASS actual player mode 5 container-fps=60
+AUDIO cache 60 fps: aid=1, WASAPI, unmuted
+PASS cache color and GPU sharpen reset and restore
+PASS actual player mode 6 container-fps=60
+EXIT 0
